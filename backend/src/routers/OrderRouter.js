@@ -1,18 +1,23 @@
-//订单api
+/**
+ * 订单 API 路由
+ */
+
 import express from 'express';
+import orderController from '../controllers/OrderController.js';
+import { authenticate } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
-router.use(express.json());
-const orderController=require('../controllers/OrderController')
-const testLogin=require('../middlewares/testLogin')
 
-//使用订单功能之前需要登录
-router.use(testLogin.test)
+// 使用认证中间件
+router.use(authenticate);
 
-//获取订单
-router.get('/order',orderController.getAllOrder)
+// 获取订单
+router.get('/orders', orderController.getAllOrder);
 
-//订单细节
-router.get('/order/:order_id',orderController.getOrderDetail)
+// 订单详情
+router.get('/orders/:order_id', orderController.getOrderDetail);
 
-module.exports = router
+// 获取已完成订单
+router.get('/orders/completed', orderController.getOrderCompleted);
+
+export default router;

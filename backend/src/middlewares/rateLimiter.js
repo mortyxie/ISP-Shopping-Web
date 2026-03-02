@@ -135,15 +135,6 @@ const userRateLimiter = rateLimiter({
 });
 
 /**
- * API速率限制器
- * 针对特定API端点的限制
- * @param {Object} options - 配置选项
- */
-const apiRateLimiter = (options) => {
-    return rateLimiter(options);
-};
-
-/**
  * 登录速率限制器
  */
 const loginRateLimiter = rateLimiter({
@@ -163,122 +154,11 @@ const registerRateLimiter = rateLimiter({
     keyGenerator: (req) => `register:${req.ip}`
 });
 
-/**
- * 请求速率限制器
- * 防止单个用户发送过多请求
- */
-const requestRateLimiter = rateLimiter({
-    windowMs: 60 * 1000,       // 1分钟
-    max: 60,                    // 每分钟最多60次请求
-    message: '请求过于频繁，请稍后再试'
-});
-
-/**
- * 慢速请求检测
- * 检测请求处理时间，慢速请求消耗更多配额
- */
-const slowRequestLimiter = (options = {}) => {
-    const {
-        windowMs = 60 * 1000,
-        max = 100,
-        slowThreshold = 1000,  // 慢速请求阈值（毫秒）
-        slowCost = 5           // 慢速请求消耗配额
-    } = options;
-
-    return rateLimiter({
-        windowMs,
-        max,
-        keyGenerator: (req) => req.ip,
-        skipSuccessfulRequests: true
-    });
-};
-
-/**
- * 动态速率限制器
- * 根据系统负载动态调整限制
- */
-const dynamicRateLimiter = () => {
-    let currentMax = 100;
-
-    return (req, res, next) => {
-        // 根据系统负载调整限制（这里使用简单的CPU/内存模拟）
-        const memUsage = process.memoryUsage();
-        const memRatio = memUsage.heapUsed / memUsage.heapTotal;
-
-        if (memRatio > 0.9) {
-            currentMax = 10;  // 高负载时限制
-        } else if (memRatio > 0.7) {
-            currentMax = 50;  // 中负载时限制
-        } else {
-            currentMax = 100; // 正常负载
-        }
-
-        const limiter = rateLimiter({
-            windowMs: 60 * 1000,
-            max: currentMax,
-            message: `系统繁忙，当前限制为每分钟${currentMax}次请求`,
-            keyGenerator: (req) => req.ip
-        });
-
-        limiter(req, res, next);
-    };
-};
-
-/**
- * 白名单速率限制器
- * 跳过白名单中的IP
- * @param {Array<string>} whitelist - 白名单IP数组
- * @returns {Function} Express中间件
- */
-const whitelistedRateLimiter = (whitelist = []) => {
-    const limiter = rateLimiter();
-
-    return (req, res, next) => {
-        if (whitelist.includes(req.ip)) {
-            return next();
-        }
-        limiter(req, res, next);
-    };
-};
-
-/**
- * 获取IP信息中间件
- * 确保req.ip正确设置
- */
-const getIpInfo = (req, res, next) => {
-    // 尝试从各种来源获取真实IP
-    req.ip = req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-             req.headers['x-real-ip'] ||
-             req.connection.remoteAddress ||
-             req.socket.remoteAddress ||
-             (req.connection.socket?.remoteAddress) ||
-             '127.0.0.1';
-
-    // 移除IPv6前缀
-    if (req.ip.includes('::ffff:')) {
-        req.ip = req.ip.replace('::ffff:', '');
-    }
-
-    next();
-};
-
-// 定期清理过期记录
-setInterval(() => {
-    cleanupStore(ipStore, 24 * 60 * 60 * 1000);  // 清理超过24小时的IP记录
-    cleanupStore(userStore, 24 * 60 * 60 * 1000); // 清理超过24小时的用户记录
-}, 60 * 60 * 1000); // 每小时清理一次
-
-module.exports = {
+export {
     rateLimiter,
     ipRateLimiter,
     strictIpRateLimiter,
     userRateLimiter,
-    apiRateLimiter,
     loginRateLimiter,
-    registerRateLimiter,
-    requestRateLimiter,
-    slowRequestLimiter,
-    dynamicRateLimiter,
-    whitelistedRateLimiter,
-    getIpInfo
+    registerRateLimiter
 };

@@ -89,6 +89,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { addToCart as addItemToCart } from '../utils/cart'
+import { productApi } from '../utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,8 +97,9 @@ const { t } = useI18n()
 
 // 商品基本信息
 const productId = computed(() => parseInt(route.params.id) || 1)
-const productName = ref('The Beatles - Abbey Road 黑胶唱片')
+const productName = ref('')
 const productImage = ref('')
+const isLoading = ref(true)
 
 // 成色类别
 const conditions = [
@@ -112,101 +114,65 @@ const selectedCondition = ref('99')
 // 选中的商品变体
 const selectedVariant = ref(null)
 
-// 所有商品变体（假数据，后续从后端获取）
-const allVariants = ref([
-  // 99新
-  {
-    id: 1,
-    condition: '99',
-    price: 299.00,
-    stock: 3,
-    description: '这张99新的Abbey Road黑胶唱片保存得非常好，几乎没有任何使用痕迹。封面完整，唱片表面光滑如新，音质完美。适合收藏家和追求完美音质的音乐爱好者。'
-  },
-  {
-    id: 2,
-    condition: '99',
-    price: 289.00,
-    stock: 2,
-    description: '另一张99新的Abbey Road，品相极佳。原装内页完整，唱片无划痕，播放效果出色。这是收藏级别的品相，非常难得。'
-  },
-  {
-    id: 3,
-    condition: '99',
-    price: 279.00,
-    stock: 1,
-    description: '最后一张99新的Abbey Road，品相完美。原版封面，唱片状态极佳，适合作为收藏品保存。'
-  },
-  // 85新
-  {
-    id: 4,
-    condition: '85',
-    price: 199.00,
-    stock: 5,
-    description: '85新的Abbey Road，整体状态良好。封面有轻微使用痕迹，但整体完整。唱片有少量轻微划痕，但不影响播放，音质依然清晰。性价比很高。'
-  },
-  {
-    id: 5,
-    condition: '85',
-    price: 189.00,
-    stock: 4,
-    description: '另一张85新的Abbey Road，品相良好。封面边缘有轻微磨损，唱片表面有少量使用痕迹，但播放效果依然不错。适合日常聆听。'
-  },
-  {
-    id: 6,
-    condition: '85',
-    price: 179.00,
-    stock: 3,
-    description: '85新的Abbey Road，状态良好。封面有正常使用痕迹，唱片有轻微磨损，但音质清晰，适合喜欢经典音乐的朋友。'
-  },
-  {
-    id: 7,
-    condition: '85',
-    price: 169.00,
-    stock: 2,
-    description: '85新的Abbey Road，整体品相不错。封面有轻微折痕，唱片有少量划痕，但播放正常，音质良好。'
-  },
-  // 75新
-  {
-    id: 8,
-    condition: '75',
-    price: 129.00,
-    stock: 6,
-    description: '75新的Abbey Road，有明显的使用痕迹。封面有折痕和磨损，唱片表面有较多划痕，但依然可以正常播放。音质略有影响，但整体可听。适合预算有限的朋友。'
-  },
-  {
-    id: 9,
-    condition: '75',
-    price: 119.00,
-    stock: 5,
-    description: '另一张75新的Abbey Road，使用痕迹明显。封面有破损，唱片有较多划痕，播放时可能有轻微杂音，但整体可用。价格实惠。'
-  },
-  {
-    id: 10,
-    condition: '75',
-    price: 109.00,
-    stock: 4,
-    description: '75新的Abbey Road，品相一般。封面和唱片都有明显使用痕迹，有划痕和磨损，但可以播放。适合对品相要求不高的朋友。'
-  },
-  {
-    id: 11,
-    condition: '75',
-    price: 99.00,
-    stock: 3,
-    description: '75新的Abbey Road，状态一般。封面有破损，唱片有较多划痕，播放时可能有杂音，但价格便宜，适合入门收藏。'
-  },
-  {
-    id: 12,
-    condition: '75',
-    price: 89.00,
-    stock: 2,
-    description: '75新的Abbey Road，品相较差但可用。封面和唱片都有明显使用痕迹，有较多划痕，播放效果一般，但价格非常实惠。'
-  }
-])
+// 所有商品变体（从API加载）
+const allVariants = ref([])
 
 // 当前成色下的商品列表
 const currentVariants = computed(() => {
   return allVariants.value.filter(v => v.condition === selectedCondition.value)
 })
+
+// 加载商品详情
+const loadProductDetail = async () => {
+  try {
+    isLoading.value = true
+    const data = await productApi.getProductDetail(productId.value)
+    if (data) {
+      productName.value = data.name
+      productImage.value = data.image || generateProductImage()
+      // 简化处理：将商品详情转换为变体列表
+      allVariants.value = [
+        {
+          id: data.id,
+          condition: '99',
+          price: data.price,
+          stock: data.stock,
+          description: data.description || '商品描述'
+        }
+      ]
+    }
+  } catch (error) {
+    console.error('加载商品详情失败:', error)
+    // 使用默认假数据作为fallback
+    productName.value = 'The Beatles - Abbey Road 黑胶唱片'
+    productImage.value = generateProductImage()
+    allVariants.value = [
+      {
+        id: 1,
+        condition: '99',
+        price: 299.00,
+        stock: 3,
+        description: '这张99新的Abbey Road黑胶唱片保存得非常好，几乎没有任何使用痕迹。封面完整，唱片表面光滑如新，音质完美。适合收藏家和追求完美音质的音乐爱好者。'
+      },
+      {
+        id: 4,
+        condition: '85',
+        price: 199.00,
+        stock: 5,
+        description: '85新的Abbey Road，整体状态良好。封面有轻微使用痕迹，但整体完整。唱片有少量轻微划痕，但不影响播放，音质依然清晰。性价比很高。'
+      },
+      {
+        id: 8,
+        condition: '75',
+        price: 129.00,
+        stock: 6,
+        description: '75新的Abbey Road，有明显的使用痕迹。封面有折痕和磨损，唱片表面有较多划痕，但依然可以正常播放。音质略有影响，但整体可听。适合预算有限的朋友。'
+      }
+    ]
+  } finally {
+    isLoading.value = false
+  }
+}
 
 // 生成商品大图（使用唱片占位图）
 const generateProductImage = () => {
@@ -225,7 +191,7 @@ const generateProductImage = () => {
       <text x="250" y="350" font-family="Arial, sans-serif" font-size="60" fill="rgba(255,255,255,0.8)" text-anchor="middle" font-weight="bold">💿</text>
     </svg>
   `.trim()
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
+  return `data:image/svg+xml;base64,${btoa(encodeURIComponent(svg).replace(/%([0-9A-F]{2})/g, (_match, p1) => String.fromCharCode('0x' + p1)))}`
 }
 
 // 选择成色
@@ -251,27 +217,25 @@ const getConditionItemCount = (condition) => {
 }
 
 // 添加到购物车
-const addToCart = () => {
+const addToCart = async () => {
   if (!selectedVariant.value) return
-  
+
   const product = {
     id: selectedVariant.value.id,
     name: `${productName.value} - ${getConditionLabel(selectedVariant.value.condition)}`,
     image: productImage.value,
     price: selectedVariant.value.price
   }
-  
-  addItemToCart(product, 1)
+
+  await addItemToCart(product, 1)
   // 触发Header更新
   window.dispatchEvent(new Event('cartUpdated'))
-  
+
   alert('已添加到购物车')
 }
 
-onMounted(() => {
-  // 生成商品大图
-  productImage.value = generateProductImage()
-  
+onMounted(async () => {
+  await loadProductDetail()
   // 默认选择第一个商品
   if (currentVariants.value.length > 0) {
     selectedVariant.value = currentVariants.value[0]

@@ -1,18 +1,20 @@
-//评论泡泡api
+/**
+ * 评论泡泡 API 路由
+ */
+
 import express from 'express';
+import bubbleController from '../controllers/BubbleController.js';
+import { authenticate } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
-router.use(express.json());
-const bubbleController=require('../controllers/BubbleController')
-const testLogin=require('../middlewares/testLogin')
 
-//随机展示评论泡泡
-router.get('/bubble',bubbleController.dynamicBubble)
+// 随机展示评论泡泡（首页使用）
+router.get('/bubble', bubbleController.dynamicBubble);
 
-//登录后才可以发送
-//验证是否登录
-//发布评论泡泡
-router.post('/bubble/：user_id',testLogin.test,bubbleController.postBubble)
+// 获取所有评论泡泡（论坛页面使用）
+router.get('/bubbles', bubbleController.getAllBubbles);
 
+// 发布评论泡泡（需要登录）
+router.post('/bubble/:user_id', authenticate, bubbleController.postBubble);
 
-module.exports = router
+export default router;

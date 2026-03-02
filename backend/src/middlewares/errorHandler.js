@@ -118,49 +118,14 @@ const handleJWTExpiredError = () => {
 };
 
 /**
- * 处理Mongoose验证错误
- */
-const handleMongooseValidationError = (err) => {
-    const errors = Object.values(err.errors).map(el => ({
-        field: el.path,
-        message: el.message
-    }));
-    return new ValidationError('数据验证失败', errors);
-};
-
-/**
- * 处理Mongoose重复键错误
- */
-const handleMongooseDuplicateKeyError = (err) => {
-    const field = Object.keys(err.keyPattern)[0];
-    return new AppError(`${field} 已存在`, 400, 'DUPLICATE_KEY');
-};
-
-/**
- * 处理Mongoose Cast错误
- */
-const handleMongooseCastError = (err) => {
-    return new AppError(`无效的 ${err.path}: ${err.value}`, 400, 'CAST_ERROR');
-};
-
-/**
  * 全局错误处理中间件
  */
 const errorHandler = (err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
     err.message = err.message || '服务器内部错误';
 
-    // Mongoose错误处理
-    if (err.name === 'ValidationError') {
-        err = handleMongooseValidationError(err);
-    } else if (err.name === 'CastError') {
-        err = handleMongooseCastError(err);
-    } else if (err.code === 11000) {
-        err = handleMongooseDuplicateKeyError(err);
-    }
-
     // JWT错误处理
-    else if (err.name === 'JsonWebTokenError') {
+    if (err.name === 'JsonWebTokenError') {
         err = handleJWTError();
     } else if (err.name === 'TokenExpiredError') {
         err = handleJWTExpiredError();
@@ -217,7 +182,7 @@ const errorMonitor = (err, req, res, next) => {
     next(err);
 };
 
-module.exports = {
+export {
     AppError,
     ValidationError,
     NotFoundError,

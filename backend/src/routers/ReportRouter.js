@@ -1,15 +1,20 @@
-//销售报告api
+/**
+ * 销售报告 API 路由
+ */
+
 import express from 'express';
+import reportController from '../controllers/ReportController.js';
+import { authenticate, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
-router.use(express.json());
-const reportController=require('../controllers/ReportController')
-const testManager=require('../middlewares/testManager')
 
-//测试是否为卖主
-router.use(testManager.test)
+// 测试是否为卖主
+router.use(authenticate, authorize('seller'));
 
-//销售报告
-router.get('/report',reportController.getTotalAmount)
+// 销售报告
+router.get('/report', reportController.getTotalAmount);
 
-module.exports = router
+// 销售排行榜
+router.get('/ranking', reportController.getSalesRanking);
+
+export default router;

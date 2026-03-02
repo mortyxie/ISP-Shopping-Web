@@ -61,6 +61,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { bubbleApi } from '../utils/api.js'
+import { getCurrentUser } from '../utils/auth.js'
 
 const { t } = useI18n()
 
@@ -69,9 +71,10 @@ const bubblesContainer = ref(null)
 const inputPanel = ref(null)
 const newMessage = ref('')
 const bubblesContainerHeight = ref(0)
+const isLoading = ref(false)
 
-// 假数据
-const initialBubbles = [
+// 假数据（作为fallback）
+const fallbackBubbles = [
   {
     id: 1,
     user: '音乐爱好者',
@@ -104,83 +107,6 @@ const initialBubbles = [
     y: 0,
     vx: 0.6,
     vy: -0.4
-  },
-  {
-    id: 4,
-    user: '老唱片迷',
-    time: '1天前',
-    content: '分享一个保养黑胶的小技巧：定期清洁很重要，可以用专门的清洁液。',
-    size: 220,
-    x: 0,
-    y: 0,
-    vx: -0.5,
-    vy: 0.4
-  },
-  {
-    id: 5,
-    user: '摇滚乐迷',
-    time: '2天前',
-    content: '这张专辑的B面歌曲其实更精彩，大家有听过吗？',
-    size: 170,
-    x: 0,
-    y: 0,
-    vx: 0.4,
-    vy: 0.6
-  },
-  {
-    id: 6,
-    user: '爵士爱好者',
-    time: '2天前',
-    content: '最近迷上了爵士乐，有没有好的入门专辑推荐？',
-    size: 190,
-    x: 0,
-    y: 0,
-    vx: -0.6,
-    vy: -0.3
-  },
-  {
-    id: 7,
-    user: '古典音乐',
-    time: '3天前',
-    content: '贝多芬的这张交响曲版本很多，哪个版本最值得收藏？',
-    size: 210,
-    x: 0,
-    y: 0,
-    vx: 0.3,
-    vy: -0.5
-  },
-  {
-    id: 8,
-    user: '流行音乐',
-    time: '3天前',
-    content: '80年代的流行音乐真的很有味道，现在听还是那么经典。',
-    size: 175,
-    x: 0,
-    y: 0,
-    vx: -0.3,
-    vy: 0.7
-  },
-  {
-    id: 9,
-    user: '独立音乐',
-    time: '4天前',
-    content: '小众乐队的唱片越来越难找了，大家有什么渠道推荐吗？',
-    size: 185,
-    x: 0,
-    y: 0,
-    vx: 0.7,
-    vy: 0.2
-  },
-  {
-    id: 10,
-    user: '音乐分享',
-    time: '5天前',
-    content: '今天淘到一张绝版唱片，品相很好，价格也很合理，太开心了！',
-    size: 195,
-    x: 0,
-    y: 0,
-    vx: -0.2,
-    vy: -0.6
   }
 ]
 
@@ -196,20 +122,38 @@ const updateBubblesContainerHeight = () => {
   bubblesContainerHeight.value = forumHeight - inputPanelHeight
 }
 
+// 从API加载评论
+const loadBubbles = async () => {
+  try {
+    isLoading.value = true
+    const response = await bubbleApi.getAllBubbles({ limit: 10 })
+    return response || []
+  } catch (error) {
+    console.error('加载评论失败:', error)
+    return fallbackBubbles
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // 初始化气泡位置
-const initBubbles = () => {
+const initBubbles = async () => {
   if (!bubblesContainer.value) return
-  
+
   updateBubblesContainerHeight()
-  
+
   const container = bubblesContainer.value
   const containerWidth = container.clientWidth
   const containerHeight = bubblesContainerHeight.value
-  
-  bubbles.value = initialBubbles.map((bubble, index) => ({
+
+  // 从API加载评论数据
+  const apiBubbles = await loadBubbles()
+
+  bubbles.value = apiBubbles.map((bubble, index) => ({
     ...bubble,
-    x: Math.random() * (containerWidth - bubble.size) + bubble.size / 2,
-    y: Math.random() * (containerHeight - bubble.size) + bubble.size / 2,
+    size: 160 + Math.random() * 60, // 动态大小
+    x: Math.random() * (containerWidth - 200) + 100,
+    y: Math.random() * (containerHeight - 200) + 100,
     vx: (Math.random() - 0.5) * 0.8,
     vy: (Math.random() - 0.5) * 0.8
   }))
@@ -394,45 +338,59 @@ const animate = () => {
 }
 
 // 提交新消息
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!newMessage.value.trim() || newMessage.value.length > 144) return
-  
-  const newBubble = {
-    id: Date.now(),
-    user: '我',
-    time: '刚刚',
-    content: newMessage.value.trim(),
-    size: 160 + Math.random() * 60, // 160-220px
-    x: 0,
-    y: 0,
-    vx: (Math.random() - 0.5) * 0.8,
-    vy: (Math.random() - 0.5) * 0.8
+
+  const currentUser = getCurrentUser()
+  if (!currentUser) {
+    alert('请先登录')
+    return
   }
-  
-  // 初始化位置（在容器中心附近，但要避开输入框）
-  if (bubblesContainer.value) {
-    const container = bubblesContainer.value
-    newBubble.x = container.clientWidth / 2
-    // 避免在输入框区域生成
-    const safeY = bubblesContainerHeight.value * 0.6 // 在上方60%区域生成
-    newBubble.y = safeY
+
+  try {
+    // 调用API发布评论
+    const result = await bubbleApi.postBubble(currentUser.id, newMessage.value.trim())
+
+    const newBubble = {
+      id: result.id || Date.now(),
+      user: result.user || currentUser.name,
+      time: result.time || '刚刚',
+      content: result.content || newMessage.value.trim(),
+      size: 160 + Math.random() * 60, // 160-220px
+      x: 0,
+      y: 0,
+      vx: (Math.random() - 0.5) * 0.8,
+      vy: (Math.random() - 0.5) * 0.8
+    }
+
+    // 初始化位置（在容器中心附近，但要避开输入框）
+    if (bubblesContainer.value) {
+      const container = bubblesContainer.value
+      newBubble.x = container.clientWidth / 2
+      // 避免在输入框区域生成
+      const safeY = bubblesContainerHeight.value * 0.6 // 在上方60%区域生成
+      newBubble.y = safeY
+    }
+
+    bubbles.value.push(newBubble)
+    newMessage.value = ''
+  } catch (error) {
+    console.error('发布评论失败:', error)
+    alert('发布失败，请稍后重试')
   }
-  
-  bubbles.value.push(newBubble)
-  newMessage.value = ''
 }
 
 onMounted(() => {
   // 等待DOM渲染完成
-  setTimeout(() => {
-    initBubbles()
+  setTimeout(async () => {
+    await initBubbles()
     animate()
   }, 100)
-  
+
   // 窗口大小改变时重新初始化
-  const handleResize = () => {
+  const handleResize = async () => {
     updateBubblesContainerHeight()
-    initBubbles()
+    await initBubbles()
   }
   window.addEventListener('resize', handleResize)
 })
@@ -441,7 +399,7 @@ onUnmounted(() => {
   if (animationId) {
     cancelAnimationFrame(animationId)
   }
-  window.removeEventListener('resize', initBubbles)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 

@@ -1,25 +1,26 @@
-//卖主商品管理api
+/**
+ * 卖主商品管理 API 路由
+ */
+
 import express from 'express';
+import productManageController from '../controllers/ProductManageController.js';
+import { authenticate, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
-router.use(express.json());
-const productmanageController=require('../controllers/ProductManageController')
-const testManager=require('../middlewares/testManager')
 
-//测试是否为卖主
-router.use(testManager.test)
+// 测试是否为卖主
+router.use(authenticate, authorize('seller'));
 
-//浏览商品
-router.get('/album',productmanageController.allProduct)
+// 浏览商品
+router.get('/products', productManageController.allProduct);
 
-//发布新商品
-router.post('/newalbum',productmanageController.postNewProduct)
+// 发布新商品
+router.post('/products', productManageController.postNewProduct);
 
-//下架商品
-router.delete('/album/:album_id',productmanageController.deleteProduct)
+// 下架商品
+router.delete('/products/:product_id', productManageController.deleteProduct);
 
-//更新商品
-router.post('/album/:album_id',productmanageController.updateProduct)
+// 更新商品
+router.put('/products/:product_id', productManageController.updateProduct);
 
-module.exports = router
-
+export default router;

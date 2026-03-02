@@ -2,8 +2,8 @@
  * 用户控制器 - 登入登出注册功能具体实现
  */
 
-const db = require('../config/database');
-const { generateToken, generateRefreshToken } = require('../middlewares/authMiddleware');
+import db from '../config/database.js';
+import { generateToken, generateRefreshToken } from '../middlewares/authMiddleware.js';
 
 /**
  * 用户登入
@@ -69,8 +69,6 @@ const login = (req, res) => {
  */
 const logout = (req, res) => {
     try {
-        const { user_id } = req.params;
-
         // 在实际应用中，这里应该将token加入黑名单
         // 由于是内存数据库，我们只是返回成功
         res.json({
@@ -190,7 +188,7 @@ const getCurrentUser = (req, res) => {
     }
 };
 
-module.exports = {
+export default {
     login,
     logout,
     register,

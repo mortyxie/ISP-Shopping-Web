@@ -258,73 +258,17 @@ const methodValidator = (req, res, next) => {
 };
 
 /**
- * 请求体类型验证中间件
- */
-const contentTypeValidator = (req, res, next) => {
-    // 对POST、PUT、PATCH请求验证Content-Type
-    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-        const contentType = req.headers['content-type'];
-
-        // 如果有请求体但没有Content-Type头
-        if (req.headers['content-length'] && req.headers['content-length'] > 0) {
-            if (!contentType) {
-                return res.status(400).json({
-                    success: false,
-                    message: '请求缺少Content-Type头'
-                });
-            }
-
-            const allowedTypes = [
-                'application/json',
-                'multipart/form-data',
-                'application/x-www-form-urlencoded'
-            ];
-
-            const isAllowed = allowedTypes.some(type => contentType.startsWith(type));
-            if (!isAllowed) {
-                return res.status(400).json({
-                    success: false,
-                    message: `不支持的Content-Type: ${contentType}`
-                });
-            }
-        }
-    }
-
-    next();
-};
-
-/**
- * 主机头验证中间件
- */
-const hostValidator = (allowedHosts = []) => {
-    return (req, res, next) => {
-        const host = req.headers.host;
-
-        if (allowedHosts.length > 0 && !allowedHosts.includes(host)) {
-            return res.status(400).json({
-                success: false,
-                message: '无效的主机头'
-            });
-        }
-
-        next();
-    };
-};
-
-/**
  * 安全路由配置
  */
 const securityConfig = {
     headers: securityHeaders,
-    cors: cors,
-    corsWhitelist: corsWhitelist,
-    bodySizeLimit: bodySizeLimit,
-    sqlInjectionProtection: sqlInjectionProtection,
-    xssProtection: xssProtection,
-    pathTraversalProtection: pathTraversalProtection,
-    methodValidator: methodValidator,
-    contentTypeValidator: contentTypeValidator,
-    hostValidator: hostValidator
+    cors,
+    corsWhitelist,
+    bodySizeLimit,
+    sqlInjectionProtection,
+    xssProtection,
+    pathTraversalProtection,
+    methodValidator
 };
 
-module.exports = securityConfig;
+export default securityConfig;

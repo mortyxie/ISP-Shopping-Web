@@ -26,10 +26,10 @@
         <!-- 右半边：论坛数据展示 -->
         <div class="forum-preview">
           <h2 class="forum-title">{{ $t('home.latestUpdates') }}</h2>
-          <div class="forum-list">
+          <div class="forum-list" v-if="!forumLoading">
             <div
-              v-for="(item, index) in forumData"
-              :key="index"
+              v-for="item in forumData"
+              :key="item.id"
               class="forum-item"
             >
               <div class="forum-item-header">
@@ -38,6 +38,9 @@
               </div>
               <div class="forum-content">{{ item.content }}</div>
             </div>
+          </div>
+          <div class="forum-list" v-else>
+            <div class="loading">加载中...</div>
           </div>
           <div class="forum-more" @click="$router.push('/forum')">
             {{ $t('home.viewMore') }} →
@@ -50,7 +53,7 @@
     <section class="products-section">
       <div class="container">
         <h2 class="section-title">{{ $t('home.featuredProducts') }}</h2>
-        <div class="products-grid">
+        <div class="products-grid" v-if="!productsLoading">
           <div
             v-for="product in products"
             :key="product.id"
@@ -62,8 +65,12 @@
             </div>
             <div class="product-info">
               <p class="product-name">{{ product.name }}</p>
+              <p class="product-price">¥{{ product.price }}</p>
             </div>
           </div>
+        </div>
+        <div class="products-grid" v-else>
+          <div class="loading">加载中...</div>
         </div>
       </div>
     </section>
@@ -71,8 +78,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { bubbleApi, productApi } from '../utils/api.js'
 
 const { t } = useI18n()
 
@@ -82,79 +90,90 @@ const isMobile = ref(false)
 onMounted(() => {
   // 检测设备类型
   const checkDevice = () => {
-    // 暂时只做电脑端，移动端检测留空
     isMobile.value = window.innerWidth < 768
   }
   checkDevice()
   window.addEventListener('resize', checkDevice)
+
+  // 加载数据
+  loadForumData()
+  loadProducts()
 })
 
-// 论坛假数据（使用i18n）
-const forumData = computed(() => [
-  {
-    user: t('home.forum.user1'),
-    time: t('home.forum.time1'),
-    content: t('home.forum.content1')
-  },
-  {
-    user: t('home.forum.user2'),
-    time: t('home.forum.time2'),
-    content: t('home.forum.content2')
-  },
-  {
-    user: t('home.forum.user3'),
-    time: t('home.forum.time3'),
-    content: t('home.forum.content3')
-  },
-  {
-    user: t('home.forum.user4'),
-    time: t('home.forum.time4'),
-    content: t('home.forum.content4')
-  },
-  {
-    user: t('home.forum.user5'),
-    time: t('home.forum.time5'),
-    content: t('home.forum.content5')
-  },
-  {
-    user: t('home.forum.user6'),
-    time: t('home.forum.time6'),
-    content: t('home.forum.content6')
-  },
-  {
-    user: t('home.forum.user7'),
-    time: t('home.forum.time7'),
-    content: t('home.forum.content7')
-  },
-  {
-    user: t('home.forum.user8'),
-    time: t('home.forum.time3'),
-    content: t('home.forum.content8')
-  },
-  {
-    user: t('home.forum.user9'),
-    time: t('home.forum.time4'),
-    content: t('home.forum.content9')
-  },
-  {
-    user: t('home.forum.user10'),
-    time: t('home.forum.time5'),
-    content: t('home.forum.content10')
+// 论坛数据
+const forumData = ref([])
+const forumLoading = ref(true)
+
+// 从API加载论坛数据
+const loadForumData = async () => {
+  try {
+    forumLoading.value = true
+    const data = await bubbleApi.getDynamicBubbles(10)
+    forumData.value = data || []
+  } catch (error) {
+    console.error('加载论坛数据失败:', error)
+    // 使用i18n假数据作为fallback
+    forumData.value = [
+      {
+        id: '1',
+        user: t('home.forum.user1'),
+        time: t('home.forum.time1'),
+        content: t('home.forum.content1')
+      },
+      {
+        id: '2',
+        user: t('home.forum.user2'),
+        time: t('home.forum.time2'),
+        content: t('home.forum.content2')
+      },
+      {
+        id: '3',
+        user: t('home.forum.user3'),
+        time: t('home.forum.time3'),
+        content: t('home.forum.content3')
+      }
+    ]
+  } finally {
+    forumLoading.value = false
   }
-])
+}
+
+// 商品数据
+const products = ref([])
+const productsLoading = ref(true)
+
+// 从API加载商品数据
+const loadProducts = async () => {
+  try {
+    productsLoading.value = true
+    const data = await productApi.getAllProducts({ limit: 30 })
+    products.value = data || []
+  } catch (error) {
+    console.error('加载商品数据失败:', error)
+    // 使用假数据作为fallback
+    products.value = [
+      { id: 1, name: t('home.products.product1'), image: getRecordPlaceholder(1), price: 199 },
+      { id: 2, name: t('home.products.product2'), image: getRecordPlaceholder(2), price: 299 },
+      { id: 3, name: t('home.products.product3'), image: getRecordPlaceholder(3), price: 399 },
+      { id: 4, name: t('home.products.product4'), image: getRecordPlaceholder(4), price: 499 },
+      { id: 5, name: t('home.products.product5'), image: getRecordPlaceholder(5), price: 599 }
+    ]
+  } finally {
+    productsLoading.value = false
+  }
+}
 
 // 生成唱片封面占位图（SVG）
 const getRecordPlaceholder = (id) => {
   const colors = [
-    '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d', // 红色系
-    '#ef4444', '#f87171', '#fca5a5', '#fecaca', // 浅红色系
-    '#1f2937', '#374151', '#4b5563', '#6b7280', // 灰色系
-    '#111827', '#1f2937', '#374151', '#4b5563'  // 深灰色系
+    '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d',
+    '#ef4444', '#f87171', '#fca5a5', '#fecaca',
+    '#1f2937', '#374151', '#4b5563', '#6b7280',
+    '#111827', '#1f2937', '#374151', '#4b5563'
   ]
   const color = colors[id % colors.length]
   const color2 = colors[(id + 1) % colors.length]
-  
-  // 创建SVG唱片封面占位图
+
   const svg = `
     <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -170,163 +189,9 @@ const getRecordPlaceholder = (id) => {
       <text x="150" y="200" font-family="Arial, sans-serif" font-size="24" fill="rgba(255,255,255,0.8)" text-anchor="middle" font-weight="bold">💿</text>
     </svg>
   `.trim()
-  
-  return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
-}
 
-// 商品假数据（30个，使用i18n）
-const products = computed(() => [
-  {
-    id: 1,
-    name: t('home.products.product1'),
-    image: getRecordPlaceholder(1)
-  },
-  {
-    id: 2,
-    name: t('home.products.product2'),
-    image: getRecordPlaceholder(2)
-  },
-  {
-    id: 3,
-    name: t('home.products.product3'),
-    image: getRecordPlaceholder(3)
-  },
-  {
-    id: 4,
-    name: t('home.products.product4'),
-    image: getRecordPlaceholder(4)
-  },
-  {
-    id: 5,
-    name: t('home.products.product5'),
-    image: getRecordPlaceholder(5)
-  },
-  {
-    id: 6,
-    name: t('home.products.product6'),
-    image: getRecordPlaceholder(6)
-  },
-  {
-    id: 7,
-    name: t('home.products.product7'),
-    image: getRecordPlaceholder(7)
-  },
-  {
-    id: 8,
-    name: t('home.products.product8'),
-    image: getRecordPlaceholder(8)
-  },
-  {
-    id: 9,
-    name: t('home.products.product9'),
-    image: getRecordPlaceholder(9)
-  },
-  {
-    id: 10,
-    name: t('home.products.product10'),
-    image: getRecordPlaceholder(10)
-  },
-  {
-    id: 11,
-    name: t('home.products.product11'),
-    image: getRecordPlaceholder(11)
-  },
-  {
-    id: 12,
-    name: t('home.products.product12'),
-    image: getRecordPlaceholder(12)
-  },
-  {
-    id: 13,
-    name: t('home.products.product13'),
-    image: getRecordPlaceholder(13)
-  },
-  {
-    id: 14,
-    name: t('home.products.product14'),
-    image: getRecordPlaceholder(14)
-  },
-  {
-    id: 15,
-    name: t('home.products.product15'),
-    image: getRecordPlaceholder(15)
-  },
-  {
-    id: 16,
-    name: t('home.products.product16'),
-    image: getRecordPlaceholder(16)
-  },
-  {
-    id: 17,
-    name: t('home.products.product17'),
-    image: getRecordPlaceholder(17)
-  },
-  {
-    id: 18,
-    name: t('home.products.product18'),
-    image: getRecordPlaceholder(18)
-  },
-  {
-    id: 19,
-    name: t('home.products.product19'),
-    image: getRecordPlaceholder(19)
-  },
-  {
-    id: 20,
-    name: t('home.products.product20'),
-    image: getRecordPlaceholder(20)
-  },
-  {
-    id: 21,
-    name: t('home.products.product21'),
-    image: getRecordPlaceholder(21)
-  },
-  {
-    id: 22,
-    name: t('home.products.product22'),
-    image: getRecordPlaceholder(22)
-  },
-  {
-    id: 23,
-    name: t('home.products.product23'),
-    image: getRecordPlaceholder(23)
-  },
-  {
-    id: 24,
-    name: t('home.products.product24'),
-    image: getRecordPlaceholder(24)
-  },
-  {
-    id: 25,
-    name: t('home.products.product25'),
-    image: getRecordPlaceholder(25)
-  },
-  {
-    id: 26,
-    name: t('home.products.product26'),
-    image: getRecordPlaceholder(26)
-  },
-  {
-    id: 27,
-    name: t('home.products.product27'),
-    image: getRecordPlaceholder(27)
-  },
-  {
-    id: 28,
-    name: t('home.products.product28'),
-    image: getRecordPlaceholder(28)
-  },
-  {
-    id: 29,
-    name: t('home.products.product29'),
-    image: getRecordPlaceholder(29)
-  },
-  {
-    id: 30,
-    name: t('home.products.product30'),
-    image: getRecordPlaceholder(30)
-  }
-])
+  return `data:image/svg+xml;base64,${btoa(encodeURIComponent(svg).replace(/%([0-9A-F]{2})/g, (_match, p1) => String.fromCharCode('0x' + p1)))}`
+}
 </script>
 
 <style scoped>

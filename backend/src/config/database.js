@@ -159,4 +159,4 @@ class Database {
 // 创建单例实例
 const db = new Database();
 
-module.exports = db;
+export default db;

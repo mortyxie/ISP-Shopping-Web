@@ -2,25 +2,26 @@
  * ISP购物网站后端主入口文件
  */
 
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 导入路由
-const homeRouter = require('./routers/HomeRouter');
-const userRouter = require('./routers/UserRouter');
-const bubbleRouter = require('./routers/BubbleRouter');
-const cartRouter = require('./routers/CartRouter');
-const productDetailRouter = require('./routers/ProductDetailRouter');
-const productManageRouter = require('./routers/ProductManageRouter');
-const reviewRouter = require('./routers/ReviewRouter');
-const orderRouter = require('./routers/OrderRouter');
-const reportRouter = require('./routers/ReportRouter');
+import homeRouter from './routers/HomeRouter.js';
+import userRouter from './routers/UserRouter.js';
+import bubbleRouter from './routers/BubbleRouter.js';
+import cartRouter from './routers/CartRouter.js';
+import productDetailRouter from './routers/ProductDetailRouter.js';
+import productManageRouter from './routers/ProductManageRouter.js';
+import reviewRouter from './routers/ReviewRouter.js';
+import orderRouter from './routers/OrderRouter.js';
+import reportRouter from './routers/ReportRouter.js';
 
 // 导入中间件
-const errorHandler = require('./middlewares/errorHandler');
-const logger = require('./middlewares/logger');
-const rateLimiter = require('./middlewares/rateLimiter');
+import { errorHandler, notFound } from './middlewares/errorHandler.js';
+import { logger } from './middlewares/logger.js';
+import { rateLimiter } from './middlewares/rateLimiter.js';
 
 const app = express();
 
@@ -39,6 +40,8 @@ app.use(logger);
 app.use(rateLimiter);
 
 // 静态文件服务
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // API路由
@@ -57,16 +60,11 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// 404处理
+app.use(notFound);
+
 // 错误处理中间件
 app.use(errorHandler);
-
-// 404处理
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: '请求的资源不存在'
-    });
-});
 
 const PORT = process.env.PORT || 3000;
 
@@ -75,4 +73,4 @@ app.listen(PORT, () => {
     console.log(`API地址: http://localhost:${PORT}/api`);
 });
 
-module.exports = app;
+export default app;
