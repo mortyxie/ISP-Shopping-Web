@@ -396,6 +396,66 @@ const initialData = {
             shippingName: '李四',
             shippingPhone: '13800138002',
             createdAt: new Date(Date.now() - 43200000).toISOString()
+        },
+        {
+            id: 'order_3',
+            userId: '1',
+            userName: '张三',
+            items: [
+                {
+                    id: '7',
+                    name: 'Queen - A Night at the Opera',
+                    image: 'https://via.placeholder.com/300x300/d97706/ffffff?text=A+Night+at+the+Opera',
+                    price: 399.00,
+                    quantity: 1
+                }
+            ],
+            totalAmount: 399.00,
+            status: 'completed',
+            shippingAddress: '北京市海淀区中关村大街1号',
+            shippingName: '张三',
+            shippingPhone: '13800138001',
+            createdAt: new Date(Date.now() - 259200000).toISOString()
+        },
+        {
+            id: 'order_4',
+            userId: '2',
+            userName: '李四',
+            items: [
+                {
+                    id: '10',
+                    name: 'Daft Punk - Random Access Memories',
+                    image: 'https://via.placeholder.com/300x300/7c3aed/ffffff?text=RAM',
+                    price: 369.00,
+                    quantity: 2
+                }
+            ],
+            totalAmount: 738.00,
+            status: 'shipped',
+            shippingAddress: '上海市闵行区虹桥镇路101号',
+            shippingName: '李四',
+            shippingPhone: '13800138002',
+            createdAt: new Date(Date.now() - 86400000).toISOString()
+        },
+        {
+            id: 'order_5',
+            userId: '1',
+            userName: '张三',
+            items: [
+                {
+                    id: '14',
+                    name: 'AC/DC - Back in Black',
+                    image: 'https://via.placeholder.com/300x300/dc2626/ffffff?text=Back+in+Black',
+                    price: 299.00,
+                    quantity: 3
+                }
+            ],
+            totalAmount: 897.00,
+            status: 'shipped',
+            shippingAddress: '北京市朝阳区三里屯路66号',
+            shippingName: '张三',
+            shippingPhone: '13800138001',
+            createdAt: new Date(Date.now() - 172800000).toISOString()
         }
     ],
     reviews: [
