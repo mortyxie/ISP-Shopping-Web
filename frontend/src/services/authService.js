@@ -21,6 +21,28 @@ export const login = async (username, password) => {
   }
 }
 
+export const register = async (userData) => {
+  try {
+    const data = await apiCall('/users/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: userData.username,
+        email: userData.email,
+        password: userData.password
+        // role is removed - backend will default to 'customer'
+      })
+    })
+    
+    if (data.success) {
+      return { success: true, message: 'Registration successful' }
+    }
+    return { success: false, message: data.message || 'Registration failed' }
+  } catch (error) {
+    console.error('Registration error:', error)
+    return { success: false, message: 'Network error' }
+  }
+}
+
 export const logout = () => {
   localStorage.removeItem('token')
   localStorage.removeItem('currentUser')

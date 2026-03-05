@@ -21,19 +21,20 @@
   "home": {
     "latestUpdates": "最新動態",
     "viewMore": "查看更多",
-    "featuredProducts": "精選商品",
+    "featuredAlbums": "精選專輯",
+    "noAlbums": "暫無專輯",
     "justNow": "剛剛",
     "minutesAgo": "{count}分鐘前",
     "hoursAgo": "{count}小時前",
     "daysAgo": "{count}天前",
     "noMessages": "暫無留言",
-    "anonymous": "匿名用戶",
-    "noProducts": "暫無商品"
+    "anonymous": "匿名用戶"
   },
   "common": {
     "loading": "載入中...",
     "retry": "重試",
-    "loadError": "載入數據失敗"
+    "loadError": "載入數據失敗",
+    "goBack": "返回"
   },
   "login": {
     "title": "登錄",
@@ -54,6 +55,31 @@
     "testAccount2": "普通用戶：user2 / 123456",
     "testAccount3": "商家賬號：seller / 123456"
   },
+  "register": {
+    "title": "註冊",
+    "username": "用戶名",
+    "usernamePlaceholder": "請輸入用戶名",
+    "email": "郵箱",
+    "emailPlaceholder": "請輸入郵箱",
+    "password": "密碼",
+    "passwordPlaceholder": "請輸入密碼",
+    "confirmPassword": "確認密碼",
+    "confirmPasswordPlaceholder": "請再次輸入密碼",
+    "registerButton": "註冊",
+    "registering": "註冊中...",
+    "haveAccount": "已有賬號？",
+    "loginNow": "立即登錄",
+    "success": "註冊成功！正在跳轉到登錄頁面...",
+    "error": {
+      "usernameRequired": "請輸入用戶名",
+      "emailRequired": "請輸入郵箱",
+      "emailInvalid": "請輸入有效的郵箱地址",
+      "passwordRequired": "請輸入密碼",
+      "passwordTooShort": "密碼至少需要6個字符",
+      "passwordMismatch": "兩次輸入的密碼不一致",
+      "registrationFailed": "註冊失敗，請重試"
+    }
+  },
   "cart": {
     "title": "購物車",
     "empty": "購物車是空的",
@@ -69,19 +95,25 @@
     "checkout": "去結算",
     "continueShopping": "繼續購物",
     "update": "更新",
-    "confirmRemove": "確定要刪除這個商品嗎？",
-    "itemRemoved": "商品已刪除"
+    "itemRemoved": "商品已刪除",
+    "confirmRemove": "確定要刪除這個商品嗎？"
   },
   "productDetail": {
     "selectCondition": "選擇成色",
     "availableItems": "可選商品",
     "noItems": "該成色下暫無商品",
     "inStock": "有貨",
-    
+    "outOfStock": "缺貨",
     "addToCart": "加入購物車",
     "description": "商品描述",
     "addedToCart": "已加入購物車",
     "addToCartError": "加入購物車失敗"
+  },
+  "albumDetail": {
+    "tracklist": "曲目列表",
+    "availableCopies": "可用唱片",
+    "noProducts": "該專輯暫無唱片",
+    "noItemsInCondition": "該成色下暫無唱片"
   },
   "category": {
     "title": "商品分類",
@@ -115,6 +147,7 @@
   "forum": {
     "placeholder": "分享你的想法...（最多144字）",
     "submit": "發布",
+    "submitting": "發布中...",
     "charLimit": "字符限制",
     "loginToPost": "登錄後發布",
     "postError": "發布失敗，請重試"

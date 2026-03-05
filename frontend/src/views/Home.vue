@@ -69,34 +69,33 @@
         </div>
       </section>
 
-      <!-- 第二板块：商品展示 -->
-      <section class="products-section">
+      <!-- 第二板块：Featured Albums -->
+      <section class="albums-section">
         <div class="container">
-          <h2 class="section-title">{{ $t('home.featuredProducts') }}</h2>
+          <h2 class="section-title">{{ $t('home.featuredAlbums') }}</h2>
           
-          <div v-if="products.length === 0" class="no-products">
-            <p>{{ $t('home.noProducts') }}</p>
+          <div v-if="albums.length === 0" class="no-albums">
+            <p>{{ $t('home.noAlbums') }}</p>
           </div>
           
-          <div v-else class="products-grid">
+          <div v-else class="albums-grid">
             <div
-              v-for="product in products"
-              :key="product.id"
-              class="product-card"
-              @click="$router.push(`/product/${product.id}`)"
+              v-for="album in albums"
+              :key="album.id"
+              class="album-card"
+              @click="$router.push(`/album/${album.id}`)"
             >
-              <div class="product-image">
+              <div class="album-image">
                 <img 
-                  :src="product.image || getRecordPlaceholder(product.id)" 
-                  :alt="product.name"
+                  :src="album.image || getRecordPlaceholder(album.id)" 
+                  :alt="album.title"
                   @error="handleImageError"
                 />
               </div>
-              <div class="product-info">
-                <p class="product-name">{{ product.name }}</p>
-                <p class="product-artist">{{ product.artist }}</p>
-                <p class="product-condition">{{ product.condition }}</p>
-                <p class="product-price">¥{{ product.price?.toFixed(2) || '0.00' }}</p>
+              <div class="album-info">
+                <p class="album-title">{{ album.title }}</p>
+                <p class="album-artist">{{ album.artist }}</p>
+                <p class="album-count">{{ album.product_count }} copies available</p>
               </div>
             </div>
           </div>
@@ -109,7 +108,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getProducts } from '../services/productService'
+import { getAlbums } from '../services/albumService'
 import { getForumMessages } from '../services/forumService'
 
 const { t } = useI18n()
@@ -117,7 +116,7 @@ const { t } = useI18n()
 // State
 const isLoading = ref(true)
 const error = ref(null)
-const products = ref([])
+const albums = ref([])
 const forumMessages = ref([])
 const isMobile = ref(false)
 
@@ -127,22 +126,21 @@ const loadData = async () => {
   error.value = null
   
   try {
-    console.log('📦 Loading products from database...')
-    const productsData = await getProducts({ limit: 30 })
-    console.log('✅ Products loaded:', productsData)
+    console.log('📀 Loading albums from database...')
+    const albumsData = await getAlbums()
+    console.log('✅ Albums loaded:', albumsData)
     
-    if (productsData && productsData.length > 0) {
-      products.value = productsData.map(p => ({
-        id: p.id,
-        name: p.name,
-        artist: p.artist,
-        image: p.image,
-        condition: p.condition,
-        price: p.price
+    if (albumsData && albumsData.length > 0) {
+      albums.value = albumsData.map(album => ({
+        id: album.album_id,
+        title: album.title,
+        artist: album.artist,
+        image: album.cover_image_url,
+        product_count: album.product_count || 0
       }))
     } else {
-      console.log('⚠️ No products found in database')
-      products.value = []
+      console.log('⚠️ No albums found in database')
+      albums.value = []
     }
 
     console.log('💬 Loading forum messages...')
@@ -552,8 +550,8 @@ onUnmounted(() => {
   background-color: var(--color-accent);
 }
 
-/* 第二板块：商品展示 */
-.products-section {
+/* 第二板块：Albums Section */
+.albums-section {
   padding: var(--spacing-xxl) 0;
   background: var(--color-bg);
 }
@@ -566,20 +564,20 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
-.no-products {
+.no-albums {
   text-align: center;
   padding: var(--spacing-xxl);
   color: var(--color-text-secondary);
   font-size: var(--font-size-lg);
 }
 
-.products-grid {
+.albums-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--spacing-lg);
 }
 
-.product-card {
+.album-card {
   background: var(--color-bg);
   border-radius: var(--border-radius-lg);
   overflow: hidden;
@@ -588,35 +586,35 @@ onUnmounted(() => {
   transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
-.product-card:hover {
+.album-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
 }
 
-.product-image {
+.album-image {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
   background: var(--color-bg-light);
 }
 
-.product-image img {
+.album-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform var(--transition-slow);
 }
 
-.product-card:hover .product-image img {
+.album-card:hover .album-image img {
   transform: scale(1.05);
 }
 
-.product-info {
+.album-info {
   padding: var(--spacing-md);
 }
 
-.product-name {
-  font-size: var(--font-size-base);
+.album-title {
+  font-size: var(--font-size-lg);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-xs) 0;
   font-weight: bold;
@@ -625,8 +623,8 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.product-artist {
-  font-size: var(--font-size-sm);
+.album-artist {
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
   margin: 0 0 var(--spacing-xs) 0;
   overflow: hidden;
@@ -634,36 +632,21 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.product-condition {
-  font-size: var(--font-size-xs);
+.album-count {
+  font-size: var(--font-size-sm);
   color: var(--color-primary);
-  margin: 0 0 var(--spacing-xs) 0;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-.product-price {
-  font-size: var(--font-size-lg);
-  color: var(--color-primary);
-  font-weight: bold;
   margin: 0;
 }
 
 /* 响应式设计 */
-@media (max-width: 1400px) {
-  .products-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
 @media (max-width: 1200px) {
-  .products-grid {
+  .albums-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 992px) {
-  .products-grid {
+  .albums-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
@@ -684,7 +667,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 767.98px) {
-  .products-grid {
+  .albums-grid {
     grid-template-columns: 1fr;
   }
 }

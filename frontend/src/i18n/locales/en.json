@@ -21,19 +21,20 @@
   "home": {
     "latestUpdates": "Latest Updates",
     "viewMore": "View More",
-    "featuredProducts": "Featured Products",
+    "featuredAlbums": "Featured Albums",
+    "noAlbums": "No albums available",
     "justNow": "Just now",
     "minutesAgo": "{count} minute ago | {count} minutes ago",
     "hoursAgo": "{count} hour ago | {count} hours ago",
     "daysAgo": "{count} day ago | {count} days ago",
     "noMessages": "No messages yet",
-    "anonymous": "Anonymous User",
-    "noProducts": "No products available"
+    "anonymous": "Anonymous User"
   },
   "common": {
     "loading": "Loading...",
     "retry": "Retry",
-    "loadError": "Failed to load data"
+    "loadError": "Failed to load data",
+    "goBack": "Go Back"
   },
   "login": {
     "title": "Login",
@@ -53,6 +54,31 @@
     "testAccount1": "Regular user: user1 / 123456",
     "testAccount2": "Regular user: user2 / 123456",
     "testAccount3": "Seller account: seller / 123456"
+  },
+  "register": {
+    "title": "Register",
+    "username": "Username",
+    "usernamePlaceholder": "Enter username",
+    "email": "Email",
+    "emailPlaceholder": "Enter email",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Confirm your password",
+    "registerButton": "Register",
+    "registering": "Registering...",
+    "haveAccount": "Already have an account?",
+    "loginNow": "Login now",
+    "success": "Registration successful! Redirecting to login...",
+    "error": {
+      "usernameRequired": "Username is required",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email",
+      "passwordRequired": "Password is required",
+      "passwordTooShort": "Password must be at least 6 characters",
+      "passwordMismatch": "Passwords do not match",
+      "registrationFailed": "Registration failed. Please try again."
+    }
   },
   "cart": {
     "title": "Shopping Cart",
@@ -77,11 +103,17 @@
     "availableItems": "Available Items",
     "noItems": "No items in this condition",
     "inStock": "In Stock",
-    
+    "outOfStock": "Out of Stock",
     "addToCart": "Add to Cart",
     "description": "Description",
     "addedToCart": "Added to cart successfully",
     "addToCartError": "Failed to add to cart"
+  },
+  "albumDetail": {
+    "tracklist": "Tracklist",
+    "availableCopies": "Available Copies",
+    "noProducts": "No copies available for this album",
+    "noItemsInCondition": "No copies in this condition"
   },
   "category": {
     "title": "Categories",
@@ -115,6 +147,7 @@
   "forum": {
     "placeholder": "Share your thoughts... (max 144 characters)",
     "submit": "Post",
+    "submitting": "Posting...",
     "charLimit": "Character limit",
     "loginToPost": "Login to post",
     "postError": "Failed to post message"

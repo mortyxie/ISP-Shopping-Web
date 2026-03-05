@@ -383,6 +383,374 @@ app.post('/api/forum/messages', authenticateToken, (req, res) => {
     );
 });
 
+// Register new user - always customer role
+app.post('/api/users/register', async (req, res) => {
+  const { username, email, password } = req.body;
+  
+  if (!username || !email || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Username, email and password are required' 
+    });
+  }
+  
+  // Check if user already exists
+  db.get(
+    'SELECT * FROM Users WHERE username = ? OR email = ?',
+    [username, email],
+    async (err, existingUser) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      if (existingUser) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Username or email already exists' 
+        });
+      }
+      
+      try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Always insert as 'customer' role
+        db.run(
+          'INSERT INTO Users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+          [username, email, hashedPassword, 'customer'],
+          function(err) {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+            
+            res.status(201).json({
+              success: true,
+              message: 'User registered successfully',
+              userId: this.lastID
+            });
+          }
+        );
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+});
+
+// ==================== ALBUMS API ====================
+
+// Get all albums with product counts
+app.get('/api/albums', (req, res) => {
+    const { genre } = req.query;
+    
+    let sql = `
+        SELECT 
+            a.album_id,
+            a.title,
+            a.artist,
+            a.cover_image_url,
+            a.genre,
+            a.release_year,
+            COUNT(p.product_id) as product_count,
+            MIN(p.price) as min_price,
+            MAX(p.price) as max_price
+        FROM Albums a
+        LEFT JOIN Products p ON a.album_id = p.album_id AND p.is_active = 1
+    `;
+    
+    const params = [];
+    
+    if (genre) {
+        sql += ' WHERE a.genre = ?';
+        params.push(genre);
+    }
+    
+    sql += ' GROUP BY a.album_id ORDER BY a.created_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// Get single album
+app.get('/api/albums/:id', (req, res) => {
+    const albumId = req.params.id;
+    
+    db.get(
+        `SELECT 
+            album_id,
+            title,
+            artist,
+            cover_image_url,
+            genre,
+            tracklist,
+            release_year,
+            created_at
+        FROM Albums
+        WHERE album_id = ?`,
+        [albumId],
+        (err, album) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            if (!album) {
+                return res.status(404).json({ error: 'Album not found' });
+            }
+            res.json(album);
+        }
+    );
+});
+
+// Get album with all its products
+app.get('/api/albums/:id/with-products', (req, res) => {
+    const albumId = req.params.id;
+    
+    db.get(
+        `SELECT * FROM Albums WHERE album_id = ?`,
+        [albumId],
+        (err, album) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (!album) {
+                return res.status(404).json({ error: 'Album not found' });
+            }
+            
+            db.all(
+                `SELECT 
+                    product_id as id,
+                    condition,
+                    price,
+                    description,
+                    image_urls
+                FROM Products 
+                WHERE album_id = ? AND is_active = 1
+                ORDER BY 
+                    CASE condition
+                        WHEN 'Mint' THEN 1
+                        WHEN 'Near Mint' THEN 2
+                        WHEN 'Good' THEN 3
+                        ELSE 4
+                    END,
+                    price DESC`,
+                [albumId],
+                (err, products) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    res.json({
+                        ...album,
+                        products: products || []
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Get products by album ID
+app.get('/api/albums/:id/products', (req, res) => {
+    const albumId = req.params.id;
+    
+    db.all(
+        `SELECT 
+            product_id as id,
+            condition,
+            price,
+            description
+        FROM Products
+        WHERE album_id = ? AND is_active = 1
+        ORDER BY 
+            CASE condition
+                WHEN 'Mint' THEN 1
+                WHEN 'Near Mint' THEN 2
+                WHEN 'Good' THEN 3
+                ELSE 4
+            END`,
+        [albumId],
+        (err, rows) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            res.json(rows);
+        }
+    );
+});
+
+// Get featured albums (most products)
+app.get('/api/albums/featured', (req, res) => {
+    const { limit = 10 } = req.query;
+    
+    const sql = `
+        SELECT 
+            a.album_id,
+            a.title,
+            a.artist,
+            a.cover_image_url,
+            a.genre,
+            a.release_year,
+            COUNT(p.product_id) as product_count
+        FROM Albums a
+        LEFT JOIN Products p ON a.album_id = p.album_id AND p.is_active = 1
+        GROUP BY a.album_id
+        HAVING product_count > 0
+        ORDER BY product_count DESC, a.created_at DESC
+        LIMIT ?
+    `;
+    
+    db.all(sql, [parseInt(limit)], (err, rows) => {
+        if (err) {
+            console.error('Error fetching featured albums:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// Get new arrivals
+app.get('/api/albums/new', (req, res) => {
+    const { limit = 10 } = req.query;
+    
+    const sql = `
+        SELECT 
+            a.album_id,
+            a.title,
+            a.artist,
+            a.cover_image_url,
+            a.genre,
+            a.release_year,
+            COUNT(p.product_id) as product_count
+        FROM Albums a
+        LEFT JOIN Products p ON a.album_id = p.album_id AND p.is_active = 1
+        GROUP BY a.album_id
+        ORDER BY a.created_at DESC
+        LIMIT ?
+    `;
+    
+    db.all(sql, [parseInt(limit)], (err, rows) => {
+        if (err) {
+            console.error('Error fetching new arrivals:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// Search albums
+app.get('/api/albums/search', (req, res) => {
+    const { q } = req.query;
+    
+    if (!q || q.length < 2) {
+        return res.json([]);
+    }
+    
+    const sql = `
+        SELECT 
+            album_id,
+            title,
+            artist,
+            cover_image_url,
+            genre,
+            release_year
+        FROM Albums
+        WHERE title LIKE ? OR artist LIKE ?
+        ORDER BY 
+            CASE 
+                WHEN title LIKE ? THEN 1
+                WHEN artist LIKE ? THEN 2
+                ELSE 3
+            END
+        LIMIT 20
+    `;
+    
+    const searchTerm = `%${q}%`;
+    const params = [searchTerm, searchTerm, `%${q}%`, `%${q}%`];
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Search error:', err);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// Get album statistics
+app.get('/api/albums/:id/stats', (req, res) => {
+    const albumId = req.params.id;
+    
+    db.get(
+        `SELECT 
+            COUNT(*) as total_products,
+            MIN(price) as min_price,
+            MAX(price) as max_price,
+            AVG(price) as avg_price
+        FROM Products
+        WHERE album_id = ? AND is_active = 1`,
+        [albumId],
+        (err, stats) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            db.all(
+                `SELECT condition, COUNT(*) as count
+                FROM Products
+                WHERE album_id = ? AND is_active = 1
+                GROUP BY condition`,
+                [albumId],
+                (err, conditions) => {
+                    if (err) {
+                        return res.status(500).json({ error: err.message });
+                    }
+                    
+                    const conditionCounts = {};
+                    conditions.forEach(c => {
+                        conditionCounts[c.condition] = c.count;
+                    });
+                    
+                    res.json({
+                        ...stats,
+                        conditions: conditionCounts
+                    });
+                }
+            );
+        }
+    );
+});
+
+// Get album with price range
+app.get('/api/albums/:id/with-price-range', (req, res) => {
+    const albumId = req.params.id;
+    
+    db.get(
+        `SELECT 
+            a.*,
+            MIN(p.price) as min_price,
+            MAX(p.price) as max_price,
+            COUNT(p.product_id) as total_products
+        FROM Albums a
+        LEFT JOIN Products p ON a.album_id = p.album_id AND p.is_active = 1
+        WHERE a.album_id = ?
+        GROUP BY a.album_id`,
+        [albumId],
+        (err, album) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (!album) {
+                return res.status(404).json({ error: 'Album not found' });
+            }
+            res.json(album);
+        }
+    );
+});
+
 // ==================== HEALTH CHECK ====================
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'Server is running' });

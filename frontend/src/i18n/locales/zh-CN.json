@@ -21,19 +21,20 @@
   "home": {
     "latestUpdates": "最新动态",
     "viewMore": "查看更多",
-    "featuredProducts": "精选商品",
+    "featuredAlbums": "精选专辑",
+    "noAlbums": "暂无专辑",
     "justNow": "刚刚",
     "minutesAgo": "{count}分钟前",
     "hoursAgo": "{count}小时前",
     "daysAgo": "{count}天前",
     "noMessages": "暂无留言",
-    "anonymous": "匿名用户",
-    "noProducts": "暂无商品"
+    "anonymous": "匿名用户"
   },
   "common": {
     "loading": "加载中...",
     "retry": "重试",
-    "loadError": "加载数据失败"
+    "loadError": "加载数据失败",
+    "goBack": "返回"
   },
   "login": {
     "title": "登录",
@@ -54,6 +55,31 @@
     "testAccount2": "普通用户：user2 / 123456",
     "testAccount3": "商家账号：seller / 123456"
   },
+  "register": {
+    "title": "注册",
+    "username": "用户名",
+    "usernamePlaceholder": "请输入用户名",
+    "email": "邮箱",
+    "emailPlaceholder": "请输入邮箱",
+    "password": "密码",
+    "passwordPlaceholder": "请输入密码",
+    "confirmPassword": "确认密码",
+    "confirmPasswordPlaceholder": "请再次输入密码",
+    "registerButton": "注册",
+    "registering": "注册中...",
+    "haveAccount": "已有账号？",
+    "loginNow": "立即登录",
+    "success": "注册成功！正在跳转到登录页面...",
+    "error": {
+      "usernameRequired": "请输入用户名",
+      "emailRequired": "请输入邮箱",
+      "emailInvalid": "请输入有效的邮箱地址",
+      "passwordRequired": "请输入密码",
+      "passwordTooShort": "密码至少需要6个字符",
+      "passwordMismatch": "两次输入的密码不一致",
+      "registrationFailed": "注册失败，请重试"
+    }
+  },
   "cart": {
     "title": "购物车",
     "empty": "购物车是空的",
@@ -69,19 +95,25 @@
     "checkout": "去结算",
     "continueShopping": "继续购物",
     "update": "更新",
-    "confirmRemove": "确定要删除这个商品吗？",
-    "itemRemoved": "商品已删除"
+    "itemRemoved": "商品已删除",
+    "confirmRemove": "确定要删除这个商品吗？"
   },
   "productDetail": {
     "selectCondition": "选择成色",
     "availableItems": "可选商品",
     "noItems": "该成色下暂无商品",
     "inStock": "有货",
-    
+    "outOfStock": "缺货",
     "addToCart": "加入购物车",
     "description": "商品描述",
     "addedToCart": "已加入购物车",
     "addToCartError": "加入购物车失败"
+  },
+  "albumDetail": {
+    "tracklist": "曲目列表",
+    "availableCopies": "可用唱片",
+    "noProducts": "该专辑暂无唱片",
+    "noItemsInCondition": "该成色下暂无唱片"
   },
   "category": {
     "title": "商品分类",
@@ -115,6 +147,7 @@
   "forum": {
     "placeholder": "分享你的想法...（最多144字）",
     "submit": "发布",
+    "submitting": "发布中...",
     "charLimit": "字符限制",
     "loginToPost": "登录后发布",
     "postError": "发布失败，请重试"
