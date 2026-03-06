@@ -128,22 +128,31 @@ app.post('/api/auth/forgot-password', (req, res) => {
 
       res.json({
         success: true,
-        message: '如果该邮箱已注册，重置密码链接已发送到您的邮箱',
-        // Development only: return temp code
-        // resetCode: tempCode
+        message: '重置密码链接已生成（开发环境，请查看下方临时码）',
+        // 前端可以用这个码直接访问重设页面
+        resetCode: tempCode,
+        tempLink: `http://localhost:5173/reset-password?email=${email}&code=${tempCode}`
       });
     }
   );
 });
 
 // Reset password (for development)
-app.post('/api/auth/reset-password', (req, res) => {
-  const { email, newPassword } = req.body;
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, newPassword, code } = req.body;
 
   if (!email || !newPassword) {
     return res.status(400).json({
       success: false,
       message: '邮箱和新密码不能为空'
+    });
+  }
+
+  // 验证重置码（开发环境）
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      message: '请输入重置码'
     });
   }
 
@@ -154,11 +163,11 @@ app.post('/api/auth/reset-password', (req, res) => {
     });
   }
 
-  // Check if user exists
+  // Check if user exists and validate code
   db.get(
     'SELECT * FROM Users WHERE email = ?',
     [email],
-    async (err, user) => {
+    (err, user) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }

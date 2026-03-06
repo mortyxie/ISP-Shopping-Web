@@ -96,12 +96,19 @@ const handleForgotPassword = async () => {
     })
 
     if (response.data.success) {
-      successMessage.value = response.data.message || '重置密码链接已发送到您的邮箱'
+      // 获取临时重置码
+      const tempCode = response.data.resetCode || ''
+      const email = form.value.email
 
-      // 3秒后返回登录页
+      successMessage.value = '重置链接已生成，正在跳转...'
+
+      // 1秒后跳转到重设页面，带上email和code参数
       setTimeout(() => {
-        router.push('/login')
-      }, 3000)
+        router.push({
+          path: '/reset-password',
+          query: { email, code: tempCode }
+        })
+      }, 1000)
     } else {
       errorMessage.value = response.data.message || '发送失败，请重试'
     }
