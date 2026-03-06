@@ -92,6 +92,110 @@ app.post('/api/users/login', (req, res) => {
     );
 });
 
+// ==================== FORGOT PASSWORD API ====================
+// Simple password reset (for development - no email sending)
+app.post('/api/auth/forgot-password', (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: '请输入邮箱地址'
+    });
+  }
+
+  // Check if user exists with this email
+  db.get(
+    'SELECT * FROM Users WHERE email = ?',
+    [email],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (!user) {
+        // For security, don't reveal if email exists
+        return res.json({
+          success: true,
+          message: '如果该邮箱已注册，重置密码链接已发送到您的邮箱'
+        });
+      }
+
+      // For development: return a temporary reset code
+      // In production, you would send an email with a reset link
+      const tempCode = 'TEMP-' + Date.now();
+      console.log(`Password reset for user ${user.username} (${email}): ${tempCode}`);
+
+      res.json({
+        success: true,
+        message: '如果该邮箱已注册，重置密码链接已发送到您的邮箱',
+        // Development only: return temp code
+        // resetCode: tempCode
+      });
+    }
+  );
+});
+
+// Reset password (for development)
+app.post('/api/auth/reset-password', (req, res) => {
+  const { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      message: '邮箱和新密码不能为空'
+    });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: '密码至少需要6个字符'
+    });
+  }
+
+  // Check if user exists
+  db.get(
+    'SELECT * FROM Users WHERE email = ?',
+    [email],
+    async (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: '用户不存在'
+        });
+      }
+
+      try {
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password
+        db.run(
+          'UPDATE Users SET password_hash = ? WHERE user_id = ?',
+          [hashedPassword, user.user_id],
+          function(err) {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+
+            res.json({
+              success: true,
+              message: '密码重置成功，请使用新密码登录'
+            });
+          }
+        );
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    }
+  );
+});
+
 // ==================== PRODUCTS API ====================
 app.get('/api/products', (req, res) => {
     const { category, search, limit } = req.query;
@@ -345,14 +449,14 @@ app.post('/api/forum/messages', authenticateToken, (req, res) => {
 // Register new user - always customer role
 app.post('/api/users/register', async (req, res) => {
   const { username, email, password } = req.body;
-  
+
   if (!username || !email || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Username, email and password are required' 
+    return res.status(400).json({
+      success: false,
+      message: 'Username, email and password are required'
     });
   }
-  
+
   // Check if user already exists
   db.get(
     'SELECT * FROM Users WHERE username = ? OR email = ?',
@@ -361,17 +465,17 @@ app.post('/api/users/register', async (req, res) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
-      
+
       if (existingUser) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Username or email already exists' 
+        return res.status(400).json({
+          success: false,
+          message: 'Username or email already exists'
         });
       }
-      
+
       try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         // Always insert as 'customer' role
         db.run(
           'INSERT INTO Users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
@@ -380,7 +484,7 @@ app.post('/api/users/register', async (req, res) => {
             if (err) {
               return res.status(500).json({ error: err.message });
             }
-            
+
             res.status(201).json({
               success: true,
               message: 'User registered successfully',
