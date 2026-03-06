@@ -208,5 +208,19 @@
     "manageCartDesc": "管理购物车商品",
     "viewProfileDesc": "查看和管理个人信息",
     "fetchError": "获取商家数据失败"
+  },
+  "search": {
+    "title": "商品搜索",
+    "placeholder": "搜索唱片、艺人、音乐风格...",
+    "button": "搜索",
+    "allCategories": "全部分类",
+    "searching": "正在搜索...",
+    "loading": "加载中...",
+    "loadMore": "加载更多",
+    "tip": "输入关键词或选择分类开始搜索",
+    "noResults": "未找到相关商品",
+    "tryDifferentKeyword": "试试其他关键词或分类",
+    "foundResults": "找到 {count} 个商品",
+    "price": "价格"
   }
 }
