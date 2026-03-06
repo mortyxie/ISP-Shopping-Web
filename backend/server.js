@@ -43,6 +43,19 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+const requireSeller = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'seller') {
+    return res.status(403).json({ error: 'Seller access required' });
+  }
+  next();
+};
+
+const preventSelfBuy = (req, res, next) => {
+  // This will be used in cart endpoints
+  req.preventSelfBuy = true;
+  next();
+};
+
 // ==================== USERS API ====================
 app.post('/api/users/login', (req, res) => {
     const { username, password } = req.body;
@@ -92,6 +105,156 @@ app.post('/api/users/login', (req, res) => {
     );
 });
 
+// ==================== SELLER API ====================
+
+// Get seller's albums
+app.get('/api/seller/albums', authenticateToken, requireSeller, (req, res) => {
+  db.all(
+    `SELECT 
+      a.*,
+      COUNT(p.product_id) as product_count
+    FROM Albums a
+    LEFT JOIN Products p ON a.album_id = p.album_id
+    GROUP BY a.album_id
+    ORDER BY a.created_at DESC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Get seller's products
+app.get('/api/seller/products', authenticateToken, requireSeller, (req, res) => {
+  db.all(
+    `SELECT 
+      p.*,
+      a.title as album_title,
+      a.cover_image_url as album_cover
+    FROM Products p
+    JOIN Albums a ON p.album_id = a.album_id
+    ORDER BY p.created_at DESC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Get seller's orders
+app.get('/api/seller/orders', authenticateToken, requireSeller, (req, res) => {
+  db.all(
+    `SELECT 
+      o.order_id,
+      o.total_amount,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      u.username as customer_name,
+      COUNT(oi.order_item_id) as item_count
+    FROM Orders o
+    JOIN Users u ON o.user_id = u.user_id
+    JOIN Order_Items oi ON o.order_id = oi.order_id
+    JOIN Products p ON oi.product_id = p.product_id
+    JOIN Albums a ON p.album_id = a.album_id
+    GROUP BY o.order_id
+    ORDER BY o.created_at DESC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// Create new album
+app.post('/api/albums', authenticateToken, requireSeller, (req, res) => {
+  const { title, artist, cover_image, genre, tracklist, release_year } = req.body;
+  
+  db.run(
+    `INSERT INTO Albums (title, artist, cover_image_url, genre, tracklist, release_year, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [title, artist, cover_image, genre, tracklist, release_year],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ 
+        success: true, 
+        album_id: this.lastID,
+        message: 'Album created successfully' 
+      });
+    }
+  );
+});
+
+// Update album
+app.put('/api/albums/:id', authenticateToken, requireSeller, (req, res) => {
+  const albumId = req.params.id;
+  const { title, artist, cover_image, genre, tracklist, release_year } = req.body;
+  
+  db.run(
+    `UPDATE Albums 
+     SET title = ?, artist = ?, cover_image_url = ?, genre = ?, tracklist = ?, release_year = ?
+     WHERE album_id = ?`,
+    [title, artist, cover_image, genre, tracklist, release_year, albumId],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, message: 'Album updated successfully' });
+    }
+  );
+});
+
+// Create new product
+app.post('/api/products', authenticateToken, requireSeller, (req, res) => {
+  const { album_id, condition, price, description, images } = req.body;
+  
+  db.run(
+    `INSERT INTO Products (album_id, condition, price, description, image_urls, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+    [album_id, condition, price, description, JSON.stringify(images)], // Store images as JSON string
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ 
+        success: true, 
+        product_id: this.lastID,
+        message: 'Product added successfully' 
+      });
+    }
+  );
+});
+
+// Update product
+app.put('/api/products/:id', authenticateToken, requireSeller, (req, res) => {
+  const productId = req.params.id;
+  const { condition, price, description, images } = req.body;
+  
+  db.run(
+    `UPDATE Products 
+     SET condition = ?, price = ?, description = ?, image_urls = ?
+     WHERE product_id = ?`,
+    [condition, price, description, JSON.stringify(images), productId],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, message: 'Product updated successfully' });
+    }
+  );
+});
+
 // ==================== PRODUCTS API ====================
 app.get('/api/products', (req, res) => {
     const { category, search, limit } = req.query;
@@ -138,13 +301,9 @@ app.get('/api/products', (req, res) => {
     });
 });
 
+// Get single product
 app.get('/api/products/:id', (req, res) => {
     const productId = req.params.id;
-    
-    // Make sure productId is a number
-    if (isNaN(productId)) {
-        return res.status(400).json({ error: 'Invalid product ID' });
-    }
     
     db.get(
         `SELECT 
@@ -152,6 +311,7 @@ app.get('/api/products/:id', (req, res) => {
             a.title as name,
             a.artist,
             a.cover_image_url as image,
+            p.image_urls,  
             p.price,
             p.condition,
             p.description,
@@ -164,7 +324,6 @@ app.get('/api/products/:id', (req, res) => {
         [productId],
         (err, product) => {
             if (err) {
-                console.error('Database error:', err.message);
                 return res.status(500).json({ error: err.message });
             }
             if (!product) {
@@ -173,6 +332,52 @@ app.get('/api/products/:id', (req, res) => {
             res.json(product);
         }
     );
+});
+
+// Delete product
+app.delete('/api/products/:id', authenticateToken, requireSeller, (req, res) => {
+  const productId = req.params.id;
+  
+  // First check if product exists and get its album_id
+  db.get('SELECT * FROM Products WHERE product_id = ?', [productId], (err, product) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Check if product is in any cart or order
+    db.get('SELECT COUNT(*) as count FROM Cart_Items WHERE product_id = ?', [productId], (err, cartResult) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      db.get('SELECT COUNT(*) as count FROM Order_Items WHERE product_id = ?', [productId], (err, orderResult) => {
+        if (err) {
+          return res.status(500).json({ error: err.message });
+        }
+        
+        // If product is in cart or orders, prevent deletion
+        if (cartResult.count > 0 || orderResult.count > 0) {
+          return res.status(400).json({ 
+            error: 'Cannot delete product that is in carts or orders. Deactivate it instead.' 
+          });
+        }
+        
+        // Delete the product
+        db.run('DELETE FROM Products WHERE product_id = ?', [productId], function(err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ 
+            success: true, 
+            message: 'Product deleted successfully' 
+          });
+        });
+      });
+    });
+  });
 });
 
 // ==================== CART API ====================
@@ -202,48 +407,63 @@ app.get('/api/cart', authenticateToken, (req, res) => {
   );
 });
 
-// Add to cart (always quantity 1)
+// Add to cart (always quantity 1) - Updated with seller check
 app.post('/api/cart/add', authenticateToken, (req, res) => {
   const { product_id } = req.body;
   const userId = req.user.userId;
+  const userRole = req.user.role;
   
-  // Check if product exists
-  db.get('SELECT * FROM Products WHERE product_id = ?', [product_id], (err, product) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    
-    // Check if already in cart
-    db.get(
-      'SELECT * FROM Cart_Items WHERE user_id = ? AND product_id = ?',
-      [userId, product_id],
-      (err, existingItem) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-        
-        if (existingItem) {
-          // Product already in cart - don't add duplicate
-          return res.status(400).json({ error: 'Item already in cart' });
-        }
-        
-        // Add new item with quantity 1
-        db.run(
-          'INSERT INTO Cart_Items (user_id, product_id, quantity) VALUES (?, ?, 1)',
-          [userId, product_id],
-          function(err) {
-            if (err) {
-              return res.status(500).json({ error: err.message });
-            }
-            res.json({ success: true, message: 'Item added to cart' });
-          }
-        );
+  // Check if product exists and get its seller info
+  db.get(
+    `SELECT p.*, a.title as album_title 
+     FROM Products p
+     JOIN Albums a ON p.album_id = a.album_id
+     WHERE p.product_id = ?`,
+    [product_id],
+    (err, product) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
       }
-    );
-  });
+      if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      
+      // Prevent sellers from buying (sellers can't purchase)
+      if (userRole === 'seller' || userRole === 'admin') {
+        return res.status(403).json({ 
+          error: 'Sellers cannot purchase products' 
+        });
+      }
+      
+      // Check if already in cart
+      db.get(
+        'SELECT * FROM Cart_Items WHERE user_id = ? AND product_id = ?',
+        [userId, product_id],
+        (err, existingItem) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          if (existingItem) {
+            // Product already in cart - don't add duplicate
+            return res.status(400).json({ error: 'Item already in cart' });
+          }
+          
+          // Add new item with quantity 1
+          db.run(
+            'INSERT INTO Cart_Items (user_id, product_id, quantity) VALUES (?, ?, 1)',
+            [userId, product_id],
+            function(err) {
+              if (err) {
+                return res.status(500).json({ error: err.message });
+              }
+              res.json({ success: true, message: 'Item added to cart' });
+            }
+          );
+        }
+      );
+    }
+  );
 });
 
 // Remove from cart
@@ -512,33 +732,36 @@ app.get('/api/albums/:id/with-products', (req, res) => {
 });
 
 // Get products by album ID
+// Get products by album ID
 app.get('/api/albums/:id/products', (req, res) => {
-    const albumId = req.params.id;
-    
-    db.all(
-        `SELECT 
-            product_id as id,
-            condition,
-            price,
-            description
-        FROM Products
-        WHERE album_id = ? AND is_active = 1
-        ORDER BY 
-            CASE condition
-                WHEN 'Mint' THEN 1
-                WHEN 'Near Mint' THEN 2
-                WHEN 'Good' THEN 3
-                ELSE 4
-            END`,
-        [albumId],
-        (err, rows) => {
-            if (err) {
-                console.error('Database error:', err);
-                return res.status(500).json({ error: err.message });
-            }
-            res.json(rows);
-        }
-    );
+  const albumId = req.params.id;
+  
+  db.all(
+    `SELECT 
+      product_id as id,
+      condition,
+      price,
+      description,
+      image_urls  
+    FROM Products
+    WHERE album_id = ?
+    ORDER BY 
+      CASE condition
+        WHEN 'Mint' THEN 1
+        WHEN 'Near Mint' THEN 2
+        WHEN 'Good' THEN 3
+        ELSE 4
+      END`,
+    [albumId],
+    (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      console.log('Products from DB with images:', rows); // Debug log
+      res.json(rows);
+    }
+  );
 });
 
 // Get featured albums (most products)

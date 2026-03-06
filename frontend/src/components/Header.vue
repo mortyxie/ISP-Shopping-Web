@@ -50,7 +50,11 @@
         </div>
 
         <!-- 购物车 -->
-        <div class="action-item" @click="$router.push('/cart')">
+        <div 
+          v-if="!isSeller" 
+          class="action-item" 
+          @click="$router.push('/cart')"
+        >
           <span class="action-icon">🛒</span>
           <span class="action-text">{{ $t('header.cart') }}</span>
           <span class="cart-badge" v-if="cartCount > 0">{{ cartCount }}</span>
@@ -68,6 +72,7 @@
             <div class="dropdown-item" @click="$router.push('/profile')">{{ $t('header.profile') }}</div>
             <div class="dropdown-item" @click="$router.push('/orders')">{{ $t('header.orders') }}</div>
             <div class="dropdown-item" @click="$router.push('/wishlist')">{{ $t('header.wishlist') }}</div>
+            <div class="dropdown-item" v-if="userRole === 'seller' || userRole === 'admin'" @click="$router.push('/seller')">Seller Dashboard</div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" @click="handleLogout">{{ $t('header.logout') }}</div>
           </div>
@@ -106,6 +111,8 @@ const searchKeyword = ref('')
 // 用户状态
 const isLoggedIn = ref(false)
 const username = ref('')
+const userRole = ref('') 
+const isSeller = ref(false) 
 const cartCount = ref(0)
 
 // 菜单状态
@@ -129,9 +136,13 @@ const updateUserState = async () => {
   if (user) {
     isLoggedIn.value = true
     username.value = user.name || user.username
+    userRole.value = user.role || 'customer'
+    isSeller.value = user.role === 'seller' || user.role === 'admin' 
   } else {
     isLoggedIn.value = false
     username.value = ''
+    userRole.value = ''
+    isSeller.value = false 
   }
 }
 

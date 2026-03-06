@@ -118,13 +118,17 @@ const router = createRouter({
 
 // 路由守卫（待实现）
 router.beforeEach((to, from, next) => {
-  // TODO: 实现登录验证逻辑
-  // if (to.meta.requiresAuth && !isAuthenticated()) {
-  //   next('/login')
-  // } else {
-  //   next()
-  // }
-  next()
+  const isAuthenticated = !!localStorage.getItem('token')
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}')
+  const isSeller = user.role === 'seller' || user.role === 'admin'
+  
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    next('/login')
+  } else if (to.meta.requiresSeller && !isSeller) {
+    next('/')
+  } else {
+    next()
+  }
 })
 
 export default router

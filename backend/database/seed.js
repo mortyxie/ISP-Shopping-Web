@@ -6,7 +6,7 @@ const path = require('path');
 const db = new sqlite3.Database(path.join(__dirname, 'record_store.db'));
 
 async function seedDatabase() {
-    console.log('🌱 Starting database seeding...');
+    console.log(' Starting database seeding...');
     console.log('=====================================');
     
     try {
@@ -20,7 +20,7 @@ async function seedDatabase() {
             db.run('PRAGMA foreign_keys = OFF');
             
             // Clear existing data - matching your exact table names
-            console.log('\n📝 Clearing existing data...');
+            console.log('\n Clearing existing data...');
             db.run('DELETE FROM Cart_Items');
             db.run('DELETE FROM Order_Items');
             db.run('DELETE FROM Orders');
@@ -29,7 +29,7 @@ async function seedDatabase() {
             db.run('DELETE FROM Products');
             db.run('DELETE FROM Albums');
             db.run('DELETE FROM Users');
-            console.log('✅ All tables cleared');
+            console.log(' All tables cleared');
             
             db.run('PRAGMA foreign_keys = ON');
             
@@ -63,11 +63,11 @@ async function seedDatabase() {
             
             const albums = [
                 [
-                    'Hello world', 
-                    'The Beatles', 
-                    'https://upload.wikimedia.org/wikipedia/en/4/42/Beatles_-_Abbey_Road.jpg',
+                    'AM', 
+                    'Arctic Monkeys', 
+                    'https://upload.wikimedia.org/wikipedia/en/0/04/Arctic_Monkeys_-_AM.png',
                     'Rock',
-                    '1. Come Together, 2. Something, 3. Maxwell\'s Silver Hammer, 4. Oh! Darling, 5. Octopus\'s Garden, 6. I Want You (She\'s So Heavy), 7. Here Comes the Sun, 8. Because, 9. You Never Give Me Your Money, 10. Sun King',
+                    '1. Do I Wanna Know?, 2. R U Mine?, 3. One For The Road, 4. Arabella, 5. I Want It All, 6. No.1 Party Anthem, 7. Mad Sounds, 8. Fireside, 9. Whyd You Only Call Me When Youre High?, 10. Snap Out Of It, 11. Knee Socks, 12. I Wanna Be Yours',
                     1969
                 ],
                 [
