@@ -508,6 +508,40 @@ app.post('/api/users/register', async (req, res) => {
   );
 });
 
+// Get user profile (protected)
+app.get('/api/user/profile', authenticateToken, (req, res) => {
+  db.get(
+    `SELECT user_id, username, email, avatar_url, role, created_at
+     FROM Users WHERE user_id = ?`,
+    [req.user.userId],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Get user's order count
+      db.get(
+        'SELECT COUNT(*) as order_count FROM Orders WHERE user_id = ?',
+        [req.user.userId],
+        (err, orderStats) => {
+          res.json({
+            user_id: user.user_id,
+            username: user.username,
+            email: user.email,
+            avatar_url: user.avatar_url,
+            role: user.role,
+            created_at: user.created_at,
+            orderCount: orderStats?.order_count || 0
+          });
+        }
+      );
+    }
+  );
+});
+
 // ==================== ALBUMS API ====================
 
 // Get all albums with product counts
