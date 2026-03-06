@@ -167,7 +167,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
   db.get(
     'SELECT * FROM Users WHERE email = ?',
     [email],
-    (err, user) => {
+    async (err, user) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
