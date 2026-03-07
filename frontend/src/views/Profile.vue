@@ -97,13 +97,6 @@
             <h3>{{ $t('profile.sellerActions') }}</h3>
 
             <div class="actions-grid">
-              <router-link to="/seller?tab=orders" class="action-card">
-                <div class="action-icon">📋</div>
-                <div class="action-text">
-                  <div class="action-title">{{ $t('profile.sellerOrders') }}</div>
-                  <div class="action-desc">{{ $t('profile.viewSellerOrders') }}</div>
-                </div>
-              </router-link>
 
               <router-link to="/seller" class="action-card">
                 <div class="action-icon">📊</div>

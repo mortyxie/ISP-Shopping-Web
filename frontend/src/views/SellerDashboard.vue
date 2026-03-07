@@ -531,9 +531,23 @@ const removeProductImage = (index) => {
 // Album actions
 const saveAlbum = async () => {
   try {
-    const token = localStorage.getItem('token')
-    const method = editingAlbum.value ? 'PUT' : 'POST'
-    const url = editingAlbum.value ? `/api/albums/${albumForm.value.album_id}` : '/api/albums'
+    const token = localStorage.getItem('token');
+    const method = editingAlbum.value ? 'PUT' : 'POST';
+    const url = editingAlbum.value 
+      ? `/api/albums/${albumForm.value.album_id}` 
+      : '/api/albums';
+    
+    // Prepare the data to send
+    const albumData = {
+      title: albumForm.value.title,
+      artist: albumForm.value.artist,
+      genre: albumForm.value.genre,
+      release_year: albumForm.value.release_year,
+      tracklist: albumForm.value.tracklist,
+      cover_image: albumForm.value.cover_image  // Send the image data
+    };
+    
+    console.log('Saving album data:', albumData);
     
     const response = await fetch(url, {
       method,
@@ -541,43 +555,61 @@ const saveAlbum = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(albumForm.value)
-    })
+      body: JSON.stringify(albumData)
+    });
     
     if (response.ok) {
-      alert(editingAlbum.value ? 'Album updated!' : 'Album created!')
-      cancelAlbumForm()
-      loadSellerData()
-      activeTab.value = 'albums'
+      alert(editingAlbum.value ? 'Album updated!' : 'Album created!');
+      cancelAlbumForm();
+      loadSellerData();
+      activeTab.value = 'albums';
     } else {
-      const error = await response.json().catch(() => ({ error: 'Failed to save album' }))
-      alert('Error: ' + (error.error || 'Failed to save album'))
+      const error = await response.json().catch(() => ({ error: 'Failed to save album' }));
+      alert('Error: ' + (error.error || 'Failed to save album'));
     }
   } catch (error) {
-    console.error('Failed to save album:', error)
-    alert('Failed to save album')
+    console.error('Failed to save album:', error);
+    alert('Failed to save album');
   }
-}
+};
 
 const editAlbum = (album) => {
-  albumForm.value = { ...album }
-  editingAlbum.value = true
-  activeTab.value = 'add-album'
-}
+  console.log('Editing album:', album); // Debug log
+  
+  // Populate the form with existing album data
+  albumForm.value = {
+    album_id: album.album_id,
+    title: album.title || '',
+    artist: album.artist || '',
+    genre: album.genre || '',
+    release_year: album.release_year || '',
+    tracklist: album.tracklist || '',
+    cover_image: album.cover_image_url || ''  // This loads the existing cover image
+  };
+  
+  editingAlbum.value = true;
+  activeTab.value = 'add-album';
+  
+  console.log('Album form populated:', albumForm.value); // Debug log
+};
 
+//Cancel album
 const cancelAlbumForm = () => {
   albumForm.value = {
+    album_id: null,
     title: '',
     artist: '',
     genre: '',
     release_year: '',
     tracklist: '',
     cover_image: ''
+  };
+  editingAlbum.value = false;
+  activeTab.value = 'albums';
+  if (albumImageInput.value) {
+    albumImageInput.value.value = '';
   }
-  editingAlbum.value = false
-  activeTab.value = 'albums'
-  removeAlbumImage()
-}
+};
 
 // Product actions
 const addProduct = (album) => {
@@ -783,8 +815,9 @@ const closeProductModal = () => {
 }
 
 const viewOrder = (order) => {
-  router.push(`/order/${order.order_id}`)
-}
+  // Navigate to order detail with a query param to indicate seller view
+  router.push(`/order/${order.order_id}?seller=true`);
+};
 </script>
 
 <style scoped>

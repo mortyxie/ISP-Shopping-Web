@@ -19,8 +19,9 @@
       <div v-else-if="order" class="order-content">
         <div class="order-header">
           <h1 class="page-title">{{ $t('orderDetail.title') }} #{{ order.id }}</h1>
-          <router-link to="/orders" class="back-link">
-            ← {{ $t('orderDetail.backToList') }}
+          <!-- Change this back link based on seller view -->
+          <router-link :to="isSellerView ? '/seller?tab=orders' : '/orders'" class="back-link">
+            ← {{ isSellerView ? 'Back to Seller Dashboard' : $t('orderDetail.backToList') }}
           </router-link>
         </div>
 
@@ -85,7 +86,7 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="action-buttons">
+        <div class="action-buttons" v-if="!isSellerView">
           <button 
             v-if="order.status === 'pending'" 
             class="btn-primary pay-btn" 
@@ -126,6 +127,7 @@ const { t } = useI18n()
 const order = ref(null)
 const isLoading = ref(true)
 const error = ref(null)
+const isSellerView = ref(false)
 
 // Load order from API
 const loadOrder = async () => {
@@ -135,8 +137,14 @@ const loadOrder = async () => {
   try {
     const orderId = route.params.id
     const token = localStorage.getItem('token')
+    const isSeller = route.query.seller === 'true'  // Renamed to isSeller
     
-    const response = await fetch(`/api/orders/${orderId}`, {
+    // Use different endpoints for seller vs user
+    const endpoint = isSeller 
+      ? `/api/seller/orders/${orderId}` 
+      : `/api/orders/${orderId}`
+    
+    const response = await fetch(endpoint, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -147,6 +155,10 @@ const loadOrder = async () => {
     }
     
     order.value = await response.json()
+    
+    // Store whether this is seller view - use different variable name
+    isSellerView.value = isSeller  // Fixed: using different names
+    
   } catch (err) {
     console.error('Failed to load order:', err)
     error.value = t('common.loadError')
@@ -611,6 +623,17 @@ onMounted(() => {
 
 .btn-secondary:hover {
   background: var(--color-border);
+}
+
+.seller-view-message {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm);
+  background: var(--color-accent);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-primary-light);
 }
 
 /* Responsive */

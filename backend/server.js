@@ -283,6 +283,7 @@ app.post('/api/albums', authenticateToken, requireSeller, (req, res) => {
 });
 
 // Update album
+// Update album
 app.put('/api/albums/:id', authenticateToken, requireSeller, (req, res) => {
   const albumId = req.params.id;
   const { title, artist, cover_image, genre, tracklist, release_year } = req.body;
@@ -337,6 +338,67 @@ app.put('/api/products/:id', authenticateToken, requireSeller, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
       res.json({ success: true, message: 'Product updated successfully' });
+    }
+  );
+});
+
+// Get single order for seller (by order ID only, no user check)
+app.get('/api/seller/orders/:id', authenticateToken, requireSeller, (req, res) => {
+  const orderId = req.params.id;
+  
+  db.get(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at,
+      u.username as customer_name,
+      u.email as customer_email
+    FROM Orders o
+    JOIN Users u ON o.user_id = u.user_id
+    WHERE o.order_id = ?`,
+    [orderId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      db.all(
+        `SELECT 
+          oi.order_item_id as id,
+          oi.quantity,
+          oi.price_at_purchase as price,
+          p.condition,
+          a.title as name,
+          a.cover_image_url as image
+        FROM Order_Items oi
+        JOIN Products p ON oi.product_id = p.product_id
+        JOIN Albums a ON p.album_id = a.album_id
+        WHERE oi.order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Calculate subtotal
+          const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          
+          res.json({
+            ...order,
+            items: items || [],
+            subtotal,
+            shipping_cost: 0
+          });
+        }
+      );
     }
   );
 });
