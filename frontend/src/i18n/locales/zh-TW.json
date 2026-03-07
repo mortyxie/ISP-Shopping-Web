@@ -115,6 +115,22 @@
       "registrationFailed": "註冊失敗，請重試"
     }
   },
+  "forgotPassword": {
+    "title": "忘記密碼",
+    "subtitle": "請輸入您的郵箱地址，我們將發送重置密碼的鏈接",
+    "email": "郵箱地址",
+    "emailPlaceholder": "請輸入您註冊時使用的郵箱",
+    "sendButton": "發送重置鏈接",
+    "sending": "發送中...",
+    "backToLogin": "返回登錄",
+    "success": "密碼重置鏈接已發送到您的郵箱",
+    "error": {
+      "emailRequired": "請輸入郵箱地址",
+      "emailInvalid": "請輸入有效的郵箱地址",
+      "general": "發送失敗，請重試",
+      "network": "網絡錯誤，請稍後重試"
+    }
+  },
   "cart": {
     "title": "購物車",
     "empty": "購物車是空的",

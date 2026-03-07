@@ -26,7 +26,7 @@
             <h1 class="album-title">{{ albumTitle }}</h1>
             <p class="album-artist">{{ albumArtist }}</p>
             <p class="album-year">{{ albumYear }} • {{ albumGenre }}</p>
-            <p class="album-stats">{{ totalProducts }} copies available</p>
+            <p class="album-stats">{{ totalProducts }} {{ $t('albumDetail.availableCopies') }}</p>
           </div>
         </div>
 
