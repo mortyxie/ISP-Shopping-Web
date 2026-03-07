@@ -583,6 +583,265 @@ app.delete('/api/cart/clear', authenticateToken, (req, res) => {
   );
 });
 
+// ==================== ORDERS API ====================
+
+// Get user's orders
+app.get('/api/orders', authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  
+  db.all(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at as date,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at
+    FROM Orders o
+    WHERE o.user_id = ?
+    ORDER BY o.created_at DESC`,
+    [userId],
+    (err, orders) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Get items for each order
+      const ordersWithItems = orders.map(order => {
+        return new Promise((resolve, reject) => {
+          db.all(
+            `SELECT 
+              oi.order_item_id as id,
+              oi.quantity,
+              oi.price_at_purchase as price,
+              p.condition,
+              a.title as name,
+              a.cover_image_url as image
+            FROM Order_Items oi
+            JOIN Products p ON oi.product_id = p.product_id
+            JOIN Albums a ON p.album_id = a.album_id
+            WHERE oi.order_id = ?`,
+            [order.id],
+            (err, items) => {
+              if (err) reject(err);
+              resolve({
+                ...order,
+                items: items || []
+              });
+            }
+          );
+        });
+      });
+      
+      Promise.all(ordersWithItems)
+        .then(results => res.json(results))
+        .catch(err => res.status(500).json({ error: err.message }));
+    }
+  );
+});
+
+// Get single order
+app.get('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at
+    FROM Orders o
+    WHERE o.order_id = ? AND o.user_id = ?`,
+    [orderId, userId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      db.all(
+        `SELECT 
+          oi.order_item_id as id,
+          oi.quantity,
+          oi.price_at_purchase as price,
+          p.condition,
+          a.title as name,
+          a.cover_image_url as image
+        FROM Order_Items oi
+        JOIN Products p ON oi.product_id = p.product_id
+        JOIN Albums a ON p.album_id = a.album_id
+        WHERE oi.order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Calculate subtotal (before shipping)
+          const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          
+          res.json({
+            ...order,
+            items: items || [],
+            subtotal,
+            shipping_cost: 0 // You can calculate actual shipping if needed
+          });
+        }
+      );
+    }
+  );
+});
+
+// Cancel order
+app.put('/api/orders/:id/cancel', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT status FROM Orders WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      if (order.status !== 'pending') {
+        return res.status(400).json({ error: 'Only pending orders can be cancelled' });
+      }
+      
+      db.run(
+        'UPDATE Orders SET status = ? WHERE order_id = ?',
+        ['cancelled', orderId],
+        function(err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ success: true, message: 'Order cancelled successfully' });
+        }
+      );
+    }
+  );
+});
+
+// Complete order (confirm receipt)
+app.put('/api/orders/:id/complete', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT status FROM Orders WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      if (order.status !== 'shipped') {
+        return res.status(400).json({ error: 'Only shipped orders can be completed' });
+      }
+      
+      db.run(
+        'UPDATE Orders SET status = ? WHERE order_id = ?',
+        ['completed', orderId],
+        function(err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ success: true, message: 'Order completed successfully' });
+        }
+      );
+    }
+  );
+});
+
+// Create order from cart (checkout)
+app.post('/api/orders/create', authenticateToken, (req, res) => {
+  const { shipping_address, payment_method } = req.body;
+  const userId = req.user.userId;
+  
+  if (!shipping_address) {
+    return res.status(400).json({ error: 'Shipping address is required' });
+  }
+  
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    
+    // Get cart items
+    db.all(
+      `SELECT ci.product_id, ci.quantity, p.price
+      FROM Cart_Items ci
+      JOIN Products p ON ci.product_id = p.product_id
+      WHERE ci.user_id = ?`,
+      [userId],
+      (err, cartItems) => {
+        if (err || !cartItems || cartItems.length === 0) {
+          db.run('ROLLBACK');
+          return res.status(400).json({ error: 'Cart is empty' });
+        }
+        
+        const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        
+        // Create order
+        db.run(
+          `INSERT INTO Orders (user_id, total_amount, shipping_address, payment_method, status, created_at)
+          VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)`,
+          [userId, total, shipping_address, payment_method],
+          function(err) {
+            if (err) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: err.message });
+            }
+            
+            const orderId = this.lastID;
+            
+            // Create order items
+            const stmt = db.prepare(
+              'INSERT INTO Order_Items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, ?, ?)'
+            );
+            
+            cartItems.forEach(item => {
+              stmt.run([orderId, item.product_id, item.quantity, item.price]);
+            });
+            
+            stmt.finalize();
+            
+            // Clear cart
+            db.run('DELETE FROM Cart_Items WHERE user_id = ?', [userId], (err) => {
+              if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+              }
+              
+              db.run('COMMIT');
+              res.status(201).json({ 
+                success: true, 
+                order_id: orderId,
+                message: 'Order created successfully' 
+              });
+            });
+          }
+        );
+      }
+    );
+  });
+});
+
 // ==================== FORUM API ====================
 app.get('/api/forum/messages', (req, res) => {
     const { limit = 10 } = req.query;

@@ -193,6 +193,48 @@
     "world": "World Music",
     "worldDesc": "Traditional and Modern Music from Around the World"
   },
+  "orders": {
+    "title": "My Orders",
+    "noOrders": "No Orders Yet",
+    "noOrdersDesc": "You haven't placed any orders yet. Start shopping to see your orders here!",
+    "startShopping": "Start Shopping",
+    "orderNumber": "Order",
+    "total": "Total",
+    "viewDetails": "View Details",
+    "payNow": "Pay Now",
+    "status": {
+      "pending": "Pending Payment",
+      "paid": "Paid",
+      "shipped": "Shipped",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "payFeature": "Payment feature coming soon!"
+  },
+  "orderDetail": {
+    "title": "Order Details",
+    "backToList": "Back to Orders",
+    "status": "Status",
+    "orderDate": "Order Date",
+    "shippingInfo": "Shipping Information",
+    "address": "Shipping Address",
+    "paymentMethod": "Payment Method",
+    "transactionId": "Transaction ID",
+    "paidAt": "Paid At",
+    "notSpecified": "Not specified",
+    "orderItems": "Order Items",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "total": "Total",
+    "payNow": "Pay Now",
+    "cancelOrder": "Cancel Order",
+    "confirmReceipt": "Confirm Receipt",
+    "confirmCancel": "Are you sure you want to cancel this order?",
+    "confirmReceiptMsg": "Have you received your order?",
+    "cancelFailed": "Failed to cancel order",
+    "confirmFailed": "Failed to confirm receipt",
+    "payFeature": "Payment feature coming soon!"
+  },
   "forum": {
     "placeholder": "Share your thoughts... (max 144 characters)",
     "submit": "Post",

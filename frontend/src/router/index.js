@@ -90,6 +90,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/orders',
+    name: 'Orders',
+    component: () => import('../views/Orders.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/order/:id',
+    name: 'OrderDetail',
+    component: () => import('../views/OrderDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/forum',
     name: 'Forum',
     component: () => import('../views/Forum.vue')

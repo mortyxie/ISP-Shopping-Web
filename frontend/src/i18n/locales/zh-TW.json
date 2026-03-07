@@ -195,6 +195,48 @@
     "world": "世界音樂",
     "worldDesc": "世界各地的傳統與現代音樂"
   },
+  "orders": {
+    "title": "我的訂單",
+    "noOrders": "暫無訂單",
+    "noOrdersDesc": "您還沒有下過任何訂單。開始購物，您的訂單將顯示在這裡！",
+    "startShopping": "開始購物",
+    "orderNumber": "訂單號",
+    "total": "總計",
+    "viewDetails": "查看詳情",
+    "payNow": "立即支付",
+    "status": {
+      "pending": "待付款",
+      "paid": "已付款",
+      "shipped": "已發貨",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "payFeature": "支付功能即將推出！"
+  },
+  "orderDetail": {
+    "title": "訂單詳情",
+    "backToList": "返回訂單列表",
+    "status": "訂單狀態",
+    "orderDate": "下單時間",
+    "shippingInfo": "配送信息",
+    "address": "收貨地址",
+    "paymentMethod": "支付方式",
+    "transactionId": "交易單號",
+    "paidAt": "支付時間",
+    "notSpecified": "未指定",
+    "orderItems": "商品清單",
+    "subtotal": "商品合計",
+    "shipping": "運費",
+    "total": "訂單總計",
+    "payNow": "立即支付",
+    "cancelOrder": "取消訂單",
+    "confirmReceipt": "確認收貨",
+    "confirmCancel": "確定要取消這個訂單嗎？",
+    "confirmReceiptMsg": "您確認已經收到商品了嗎？",
+    "cancelFailed": "取消訂單失敗",
+    "confirmFailed": "確認收貨失敗",
+    "payFeature": "支付功能即將推出！"
+  },
   "forum": {
     "placeholder": "分享你的想法...（最多144字）",
     "submit": "發布",
