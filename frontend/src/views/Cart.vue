@@ -104,6 +104,7 @@ import {
   removeFromCart 
 } from '../services/cartService'
 import { isAuthenticated } from '../services/authService'
+import { setCheckoutDraft } from '../services/orderService'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -156,6 +157,18 @@ const handleCheckout = () => {
     router.push('/login')
     return
   }
+  setCheckoutDraft({
+    source: 'cart',
+    items: cartItems.value.map((it) => ({
+      product_id: it.id,
+      price_at_purchase: it.price,
+      quantity: 1,
+      name: it.name,
+      artist: it.artist,
+      image: it.image,
+      condition: it.condition
+    }))
+  })
   router.push('/checkout')
 }
 
@@ -166,10 +179,18 @@ const getPlaceholder = () => {
 
 // 监听购物车更新事件
 const handleCartUpdate = () => {
+  if (!isAuthenticated()) {
+    router.push('/login')
+    return
+  }
   loadCart()
 }
 
 onMounted(() => {
+  if (!isAuthenticated()) {
+    router.push('/login')
+    return
+  }
   loadCart()
   window.addEventListener('cartUpdated', handleCartUpdate)
 })

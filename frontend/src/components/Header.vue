@@ -56,6 +56,12 @@
           <span class="cart-badge" v-if="cartCount > 0">{{ cartCount }}</span>
         </div>
 
+        <!-- 订单 -->
+        <div class="action-item" @click="goOrders">
+          <span class="action-icon">🧾</span>
+          <span class="action-text">{{ $t('header.orders') }}</span>
+        </div>
+
         <!-- 用户菜单 -->
         <div class="action-item" v-if="!isLoggedIn" @click="$router.push('/login')">
           <span class="action-icon">👤</span>
@@ -133,6 +139,14 @@ const updateUserState = async () => {
     isLoggedIn.value = false
     username.value = ''
   }
+}
+
+const goOrders = () => {
+  if (!isLoggedIn.value) {
+    router.push('/login')
+    return
+  }
+  router.push('/orders')
 }
 
 // 处理搜索

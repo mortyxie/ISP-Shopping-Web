@@ -91,6 +91,12 @@
             >
               {{ $t('productDetail.addToCart') }}
             </button>
+            <button
+              class="btn-buy-now"
+              @click="buyNow"
+            >
+              立即购买
+            </button>
           </div>
         </div>
       </div>
@@ -112,6 +118,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { addToCart as addItemToCart } from '../services/cartService'
 import { getProduct } from '../services/productService'
+import { isAuthenticated } from '../services/authService'
+import { setCheckoutDraft } from '../services/orderService'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,6 +193,30 @@ const addToCart = async () => {
     console.error('Failed to add to cart:', error)
     alert(t('productDetail.addToCartError'))
   }
+}
+
+const buyNow = () => {
+  if (!selectedProduct.value) return
+  if (!isAuthenticated()) {
+    router.push('/login')
+    return
+  }
+
+  setCheckoutDraft({
+    source: 'product',
+    items: [
+      {
+        product_id: selectedProduct.value.id,
+        price_at_purchase: selectedProduct.value.price,
+        quantity: 1,
+        name: productName.value,
+        artist: productArtist.value,
+        image: productImage.value,
+        condition: selectedProduct.value.condition
+      }
+    ]
+  })
+  router.push('/checkout')
 }
 
 // Load product data
@@ -521,6 +553,26 @@ onMounted(() => {
 .btn-add-cart:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn-buy-now {
+  width: 100%;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-light);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-buy-now:hover:not(:disabled) {
+  background: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .product-description-section {
