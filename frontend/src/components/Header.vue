@@ -50,7 +50,7 @@
         </div>
 
         <!-- 购物车 - Hide for sellers -->
-        <div v-if="!isSeller" class="action-item" @click="$router.push('/cart')">
+        <div v-if="!isSeller" class="action-item" @click="goToCart">
           <span class="action-icon">🛒</span>
           <span class="action-text">{{ $t('header.cart') }}</span>
           <span class="cart-badge" v-if="cartCount > 0">{{ cartCount }}</span>
@@ -137,6 +137,14 @@ const goToOrders = () => {
     return
   }
   router.push('/orders')
+}
+
+const goToCart = () => {
+  if (!isLoggedIn.value) {
+    router.push('/login')
+    return
+  }
+  router.push('/cart')
 }
 
 // 更新用户状态
