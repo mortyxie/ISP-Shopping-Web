@@ -142,30 +142,17 @@ const addToCart = async () => {
 
 // Buy Now
 const buyNow = () => {
-  // Check if product is loaded
   if (!productId.value) {
     alert('Product not found')
     return
   }
   
   if (!isAuthenticated()) {
-    // Save the intended product to redirect back after login
-    sessionStorage.setItem('buyNowProduct', JSON.stringify({
-      product_id: productId.value,
-      price: productPrice.value,
-      name: productName.value,
-      artist: productArtist.value,
-      image: currentImage.value,
-      condition: productCondition.value
-    }))
-    router.push('/login?redirect=buynow')
+    router.push('/login')
     return
   }
 
-  // Clear any existing draft first
-  sessionStorage.removeItem('checkout_draft')
-  
-  // Create new draft in sessionStorage
+  // Create checkout draft with just this product
   const draft = {
     source: 'product',
     items: [
@@ -181,7 +168,10 @@ const buyNow = () => {
     ]
   }
   
+  // Save to sessionStorage
   sessionStorage.setItem('checkout_draft', JSON.stringify(draft))
+  
+  // Go to checkout
   router.push('/checkout')
 }
 

@@ -321,6 +321,8 @@ const placeOrder = async () => {
   
   try {
     const token = localStorage.getItem('token')
+    
+    // Send the cart items directly to the backend
     const response = await fetch('/api/orders/create', {
       method: 'POST',
       headers: {
@@ -329,14 +331,25 @@ const placeOrder = async () => {
       },
       body: JSON.stringify({
         shipping_address: getFormattedAddress(),
-        payment_method: paymentMethod.value
+        payment_method: paymentMethod.value,
+        items: cartItems.value.map(item => ({
+          product_id: item.id,
+          price: item.price,
+          quantity: 1
+        }))
       })
     })
     
     const data = await response.json()
     
     if (response.ok) {
-      await clearCart()
+      // Clear the cart only if it was a cart checkout, not a draft
+      const hadDraft = sessionStorage.getItem('checkout_draft')
+      if (!hadDraft) {
+        await clearCart()
+      }
+      sessionStorage.removeItem('checkout_draft')
+      
       successMessage.value = t('checkout.orderSuccess')
       setTimeout(() => {
         router.push(`/order/${data.order_id}`)

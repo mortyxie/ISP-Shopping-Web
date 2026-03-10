@@ -682,73 +682,111 @@ app.get('/api/cart/summary', authenticateToken, (req, res) => {
 
 // ==================== ORDERS API ====================
 
-// Create order - SIMPLE: just move cart to order
+// Create order - accepts items from request
 app.post('/api/orders/create', authenticateToken, (req, res) => {
-  const { shipping_address, payment_method } = req.body;
+  const { shipping_address, payment_method, items } = req.body;
   const userId = req.user.userId;
   
   if (!shipping_address) {
     return res.status(400).json({ error: 'Shipping address required' });
   }
   
-  db.serialize(() => {
-    db.run('BEGIN TRANSACTION');
-    
-    // Get cart items
-    db.all(
-      `SELECT ci.product_id, p.price
-      FROM Cart_Items ci
-      JOIN Products p ON ci.product_id = p.product_id
-      WHERE ci.user_id = ?`,
-      [userId],
-      (err, cartItems) => {
-        if (err || !cartItems || cartItems.length === 0) {
-          db.run('ROLLBACK');
-          return res.status(400).json({ error: 'Cart is empty' });
+  // Use items from request if provided, otherwise get from cart
+  if (items && items.length > 0) {
+    // Create order with provided items (for Buy Now)
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      
+      // Calculate total
+      const subtotal = items.reduce((sum, item) => sum + item.price, 0);
+      const shipping = subtotal >= 500 ? 0 : 50;
+      const total = subtotal + shipping;
+      
+      // Create order
+      db.run(
+        `INSERT INTO Orders (user_id, total_amount, shipping_address, payment_method, status, created_at)
+         VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)`,
+        [userId, total, shipping_address, payment_method],
+        function(err) {
+          if (err) {
+            db.run('ROLLBACK');
+            return res.status(500).json({ error: err.message });
+          }
+          
+          const orderId = this.lastID;
+          
+          // Create order items
+          const stmt = db.prepare(
+            'INSERT INTO Order_Items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, 1, ?)'
+          );
+          
+          items.forEach(item => {
+            stmt.run([orderId, item.product_id, item.price]);
+          });
+          
+          stmt.finalize();
+          
+          db.run('COMMIT');
+          res.json({ success: true, order_id: orderId });
         }
-        
-        // Calculate total (simplified)
-        const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
-        const shipping = subtotal >= 500 ? 0 : 50;
-        const total = subtotal + shipping;
-        
-        // Create order
-        db.run(
-          `INSERT INTO Orders (user_id, total_amount, shipping_address, payment_method, status, created_at)
-           VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)`,
-          [userId, total, shipping_address, payment_method],
-          function(err) {
-            if (err) {
-              db.run('ROLLBACK');
-              return res.status(500).json({ error: err.message });
-            }
-            
-            const orderId = this.lastID;
-            
-            // Create order items
-            const stmt = db.prepare(
-              'INSERT INTO Order_Items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, 1, ?)'
-            );
-            cartItems.forEach(item => {
-              stmt.run([orderId, item.product_id, item.price]);
-            });
-            stmt.finalize();
-            
-            // Clear cart
-            db.run('DELETE FROM Cart_Items WHERE user_id = ?', [userId], (err) => {
+      );
+    });
+  } else {
+    // Fall back to cart (original logic)
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      
+      db.all(
+        `SELECT ci.product_id, p.price
+        FROM Cart_Items ci
+        JOIN Products p ON ci.product_id = p.product_id
+        WHERE ci.user_id = ?`,
+        [userId],
+        (err, cartItems) => {
+          if (err || !cartItems || cartItems.length === 0) {
+            db.run('ROLLBACK');
+            return res.status(400).json({ error: 'Cart is empty' });
+          }
+          
+          const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+          const shipping = subtotal >= 500 ? 0 : 50;
+          const total = subtotal + shipping;
+          
+          db.run(
+            `INSERT INTO Orders (user_id, total_amount, shipping_address, payment_method, status, created_at)
+             VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)`,
+            [userId, total, shipping_address, payment_method],
+            function(err) {
               if (err) {
                 db.run('ROLLBACK');
                 return res.status(500).json({ error: err.message });
               }
               
-              db.run('COMMIT');
-              res.json({ success: true, order_id: orderId });
-            });
-          }
-        );
-      }
-    );
-  });
+              const orderId = this.lastID;
+              
+              const stmt = db.prepare(
+                'INSERT INTO Order_Items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, 1, ?)'
+              );
+              cartItems.forEach(item => {
+                stmt.run([orderId, item.product_id, item.price]);
+              });
+              stmt.finalize();
+              
+              db.run('DELETE FROM Cart_Items WHERE user_id = ?', [userId], (err) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: err.message });
+                }
+                
+                db.run('COMMIT');
+                res.json({ success: true, order_id: orderId });
+              });
+            }
+          );
+        }
+      );
+    });
+  }
 });
 
 // Get user's orders
@@ -785,8 +823,7 @@ app.get('/api/orders', authenticateToken, (req, res) => {
               oi.price_at_purchase as price,
               p.condition,
               a.title as name,
-              a.cover_image_url as image,
-              p.is_active
+              a.cover_image_url as image
             FROM Order_Items oi
             JOIN Products p ON oi.product_id = p.product_id
             JOIN Albums a ON p.album_id = a.album_id
@@ -795,13 +832,10 @@ app.get('/api/orders', authenticateToken, (req, res) => {
             (err, items) => {
               if (err) reject(err);
               
-              // Check if any items in this order are now inactive (sold elsewhere)
-              const hasInactiveItems = items.some(item => item.is_active === 0);
-              
+              // DON'T filter out orders - show all orders
               resolve({
                 ...order,
-                items: items || [],
-                hasInactiveItems
+                items: items || []
               });
             }
           );
@@ -809,11 +843,7 @@ app.get('/api/orders', authenticateToken, (req, res) => {
       });
       
       Promise.all(ordersWithItems)
-        .then(results => {
-          // Filter out orders that have inactive items (products sold elsewhere)
-          const validOrders = results.filter(order => !order.hasInactiveItems);
-          res.json(validOrders);
-        })
+        .then(results => res.json(results))
         .catch(err => res.status(500).json({ error: err.message }));
     }
   );
