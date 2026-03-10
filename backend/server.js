@@ -1220,12 +1220,14 @@ app.post('/api/forum/messages', authenticateToken, (req, res) => {
 
 // Register new user - always customer role
 app.post('/api/users/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password } = req.body;  // Should match what you send
+  
+  console.log('Registration attempt:', { username, email }); // Add this for debugging
 
   if (!username || !email || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Username, email and password are required'
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Username, email and password are required' 
     });
   }
 
@@ -1235,25 +1237,26 @@ app.post('/api/users/register', async (req, res) => {
     [username, email],
     async (err, existingUser) => {
       if (err) {
+        console.error('Database error:', err);
         return res.status(500).json({ error: err.message });
       }
 
       if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username or email already exists'
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Username or email already exists' 
         });
       }
 
       try {
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Always insert as 'customer' role
         db.run(
           'INSERT INTO Users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
           [username, email, hashedPassword, 'customer'],
           function(err) {
             if (err) {
+              console.error('Insert error:', err);
               return res.status(500).json({ error: err.message });
             }
 
@@ -1265,6 +1268,7 @@ app.post('/api/users/register', async (req, res) => {
           }
         );
       } catch (error) {
+        console.error('Hash error:', error);
         res.status(500).json({ error: error.message });
       }
     }

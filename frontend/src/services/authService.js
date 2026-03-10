@@ -23,17 +23,25 @@ export const login = async (username, password) => {
 
 export const register = async (userData) => {
   try {
-    const data = await apiCall('/users/register', {
+    console.log('Sending registration data:', userData); // Debug log
+    
+    const response = await fetch('/api/users/register', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         username: userData.username,
         email: userData.email,
         password: userData.password
-        // role is removed - backend will default to 'customer'
+        // Don't send role - backend defaults to 'customer'
       })
     })
     
-    if (data.success) {
+    const data = await response.json()
+    console.log('Registration response:', data); // Debug log
+    
+    if (response.ok) {
       return { success: true, message: 'Registration successful' }
     }
     return { success: false, message: data.message || 'Registration failed' }
