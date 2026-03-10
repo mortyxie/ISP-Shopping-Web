@@ -53,8 +53,8 @@
             </div>
           </div>
 
-          <!-- 快捷操作 -->
-          <div class="quick-actions">
+          <!-- 快捷操作 - 买家视图 -->
+          <div v-if="!isSeller" class="quick-actions">
             <h3>{{ $t('profile.quickActions') }}</h3>
 
             <div class="actions-grid">
@@ -77,8 +77,32 @@
               <router-link to="/cart" class="action-card">
                 <div class="action-icon">🛒</div>
                 <div class="action-text">
-                  <div class="action-title">{{ $t('profile.myCart') }}</div>
+                  <div class="action-title">{{ $t('common.cart') }}</div>
                   <div class="action-desc">{{ $t('profile.viewCart') }}</div>
+                </div>
+              </router-link>
+
+              <button @click="handleLogout" class="action-card logout-card">
+                <div class="action-icon">🚪</div>
+                <div class="action-text">
+                  <div class="action-title">{{ $t('profile.logout') }}</div>
+                  <div class="action-desc">{{ $t('profile.logoutDesc') }}</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 快捷操作 - 卖家视图 -->
+          <div v-if="isSeller" class="quick-actions">
+            <h3>{{ $t('profile.sellerActions') }}</h3>
+
+            <div class="actions-grid">
+
+              <router-link to="/seller" class="action-card">
+                <div class="action-icon">📊</div>
+                <div class="action-text">
+                  <div class="action-title">{{ $t('profile.sellerDashboard') }}</div>
+                  <div class="action-desc">{{ $t('profile.manageStore') }}</div>
                 </div>
               </router-link>
 
@@ -112,10 +136,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import axios from 'axios'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -125,10 +148,30 @@ const user = ref(null)
 const isLoading = ref(true)
 const errorMessage = ref('')
 
+// Check if user is seller
+const isSeller = computed(() => {
+  return user.value?.role === 'seller' || user.value?.role === 'admin'
+})
+
 // 检查登录状态
 const checkAuthStatus = () => {
   const token = localStorage.getItem('token')
+  const userStr = localStorage.getItem('currentUser')
   isLoggedIn.value = !!token
+  
+  if (isLoggedIn.value && userStr) {
+    try {
+      const userData = JSON.parse(userStr)
+      user.value = {
+        username: userData.username,
+        email: userData.email,
+        role: userData.role,
+        user_id: userData.id
+      }
+    } catch (e) {
+      console.error('Error parsing user data:', e)
+    }
+  }
 }
 
 // 获取用户信息
@@ -138,21 +181,27 @@ const fetchUserProfile = async () => {
 
   try {
     const token = localStorage.getItem('token')
-    const response = await axios.get('/api/user/profile', {
+    const response = await fetch('/api/user/profile', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
+    
+    const data = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch profile')
+    }
 
-    user.value = response.data
+    user.value = data
   } catch (error) {
     console.error('Fetch profile error:', error)
-    errorMessage.value = error.response?.data?.error || t('profile.fetchError')
+    errorMessage.value = error.message || t('profile.fetchError')
 
     // 如果是认证错误，跳转到登录页
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.message.includes('401') || error.message.includes('403')) {
       localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      localStorage.removeItem('currentUser')
       router.push('/login')
     }
   } finally {
@@ -185,7 +234,8 @@ const formatDate = (dateString) => {
 const handleLogout = () => {
   if (confirm(t('profile.logoutConfirm'))) {
     localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    localStorage.removeItem('currentUser')
+    window.dispatchEvent(new Event('userStateChanged'))
     router.push('/login')
   }
 }
@@ -235,6 +285,26 @@ onMounted(() => {
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xl);
   line-height: 1.6;
+}
+
+.btn-primary {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--transition-base), transform var(--transition-base);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 /* 加载状态 */
@@ -381,6 +451,7 @@ onMounted(() => {
   text-decoration: none;
   transition: all var(--transition-base);
   cursor: pointer;
+  width: 100%;
 }
 
 .action-card:hover {
@@ -406,6 +477,7 @@ onMounted(() => {
 
 .action-text {
   flex: 1;
+  text-align: left;
 }
 
 .action-title {

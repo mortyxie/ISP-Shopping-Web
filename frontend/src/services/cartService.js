@@ -27,17 +27,16 @@ export const addToCart = async (productId) => {
   try {
     const response = await apiCall('/cart/add', {
       method: 'POST',
-      body: JSON.stringify({ 
-        product_id: productId
-        // quantity removed - always 1
-      })
+      body: JSON.stringify({ product_id: productId })
     })
     
     if (response && response.success) {
       window.dispatchEvent(new Event('cartUpdated'))
       return { success: true }
     }
-    return { success: false, error: response?.error || 'Failed to add to cart' }
+    
+    // Return specific error message from server
+    return { success: false, error: response.error || 'Failed to add to cart' }
   } catch (error) {
     console.error('Add to cart error:', error)
     return { success: false, error: error.message }

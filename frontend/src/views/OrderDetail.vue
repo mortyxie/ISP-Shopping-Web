@@ -1,81 +1,113 @@
 <template>
   <div class="order-detail-page">
     <div class="container">
-      <h1 class="page-title">订单详情</h1>
-
-      <div v-if="!detail" class="empty-state">
-        <div class="empty-icon">🧾</div>
-        <h2>订单不存在或无权限访问</h2>
-        <button class="btn-primary" @click="router.push('/orders')">返回订单列表</button>
+      <!-- Loading State -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>{{ $t('common.loading') }}</p>
       </div>
 
-      <div v-else class="content">
-        <div class="panel">
-          <div class="top-row">
-            <div class="order-id">订单号：{{ detail.order.order_id }}</div>
-            <div class="status">{{ statusText(detail.order.status) }}</div>
-          </div>
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <p class="error-message">{{ error }}</p>
+        <button @click="loadOrder" class="btn-primary">
+          {{ $t('common.retry') }}
+        </button>
+      </div>
 
-          <div class="meta-grid">
-            <div class="meta-item">
-              <div class="label">下单时间</div>
-              <div class="value">{{ formatTime(detail.order.created_at) }}</div>
-            </div>
-            <div class="meta-item">
-              <div class="label">支付时间</div>
-              <div class="value">{{ detail.order.paid_at ? formatTime(detail.order.paid_at) : '-' }}</div>
-            </div>
-            <div class="meta-item">
-              <div class="label">支付方式</div>
-              <div class="value">{{ detail.order.payment_method }}</div>
-            </div>
-            <div class="meta-item">
-              <div class="label">交易号</div>
-              <div class="value">{{ detail.order.transaction_id }}</div>
-            </div>
-            <div class="meta-item meta-address">
-              <div class="label">收件地址</div>
-              <div class="value">{{ detail.order.shipping_address }}</div>
+      <!-- Order Details -->
+      <div v-else-if="order" class="order-content">
+        <div class="order-header">
+          <h1 class="page-title">{{ $t('orderDetail.title') }} #{{ order.id }}</h1>
+          <!-- Change this back link based on seller view -->
+          <router-link :to="isSellerView ? '/seller?tab=orders' : '/orders'" class="back-link">
+            ← {{ isSellerView ? 'Back to Seller Dashboard' : $t('orderDetail.backToList') }}
+          </router-link>
+        </div>
+
+        <!-- Order Status Card -->
+        <div class="status-card">
+          <div class="status-info">
+            <span class="status-label">{{ $t('orderDetail.status') }}:</span>
+            <span class="order-status" :class="order.status">
+              {{ getStatusText(order.status) }}
+            </span>
+          </div>
+          <div class="date-info">
+            <span class="date-label">{{ $t('orderDetail.orderDate') }}:</span>
+            <span class="date-value">{{ formatDate(order.created_at) }}</span>
+          </div>
+        </div>
+
+        <!-- Shipping Information -->
+        <div class="shipping-card">
+          <h2>{{ $t('orderDetail.shippingInfo') }}</h2>
+          <div class="shipping-details">
+            <p><strong>{{ $t('orderDetail.address') }}:</strong> {{ order.shipping_address }}</p>
+            <p><strong>{{ $t('orderDetail.paymentMethod') }}:</strong> {{ order.payment_method || t('orderDetail.notSpecified') }}</p>
+            <p v-if="order.transaction_id"><strong>{{ $t('orderDetail.transactionId') }}:</strong> {{ order.transaction_id }}</p>
+            <p v-if="order.paid_at"><strong>{{ $t('orderDetail.paidAt') }}:</strong> {{ formatDate(order.paid_at) }}</p>
+          </div>
+        </div>
+
+        <!-- Order Items -->
+        <div class="items-card">
+          <h2>{{ $t('orderDetail.orderItems') }}</h2>
+          <div class="items-list">
+            <div v-for="item in order.items" :key="item.id" class="order-item">
+              <img :src="item.image" :alt="item.name" class="item-image">
+              <div class="item-details">
+                <h3>{{ item.name }}</h3>
+                <p class="item-condition">{{ item.condition }}</p>
+                <p class="item-price">¥{{ item.price }} x {{ item.quantity }}</p>
+              </div>
+              <div class="item-subtotal">
+                <span class="subtotal-label">{{ $t('orderDetail.subtotal') }}:</span>
+                <span class="subtotal-value">¥{{ item.price * item.quantity }}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="panel">
-          <h2 class="panel-title">商品明细</h2>
-
-          <div class="items-header">
-            <div class="col product-col">商品</div>
-            <div class="col price-col">成交价</div>
-            <div class="col qty-col">数量</div>
-            <div class="col subtotal-col">小计</div>
+        <!-- Order Summary -->
+        <div class="summary-card">
+          <div class="summary-row">
+            <span>{{ $t('orderDetail.subtotal') }}:</span>
+            <span>¥{{ order.subtotal || 0 }}</span>
           </div>
+          <div class="summary-row">
+            <span>{{ $t('orderDetail.shipping') }}:</span>
+            <span>¥{{ order.shipping_cost || 0 }}</span>
+          </div>
+          <div class="summary-row total">
+            <span>{{ $t('orderDetail.total') }}:</span>
+            <span class="total-price">¥{{ (order.subtotal || 0) + (order.shipping_cost || 0) }}</span>
+          </div>
+        </div>
 
-          <div
-            v-for="it in detail.items"
-            :key="it.order_item_id"
-            class="item-row clickable"
-            @click="goProduct(it.product_id)"
+        <!-- Action Buttons -->
+        <div class="action-buttons" v-if="!isSellerView">
+          <button 
+            v-if="order.status === 'pending'" 
+            class="btn-primary pay-btn" 
+            @click="payOrder"
           >
-            <div class="col product-col">
-              <div class="product-info">
-                <img :src="it.image || placeholder" class="product-image" :alt="it.name" />
-                <div class="product-meta">
-                  <div class="product-name">{{ it.name || `商品 ${it.product_id}` }}</div>
-                  <div class="product-sub">{{ it.artist }} · {{ it.condition }}</div>
-                  <div class="product-sub">product_id：{{ it.product_id }}</div>
-                </div>
-              </div>
-            </div>
-            <div class="col price-col">¥{{ Number(it.price_at_purchase).toFixed(2) }}</div>
-            <div class="col qty-col">{{ it.quantity || 1 }}</div>
-            <div class="col subtotal-col">
-              ¥{{ (Number(it.price_at_purchase) * Number(it.quantity || 1)).toFixed(2) }}
-            </div>
-          </div>
-
-          <div class="total-row">
-            合计：<span class="money">¥{{ Number(detail.order.total_amount).toFixed(2) }}</span>
-          </div>
+            💰 {{ $t('orderDetail.payNow') }}
+          </button>
+          <button 
+            v-if="order.status === 'pending'" 
+            class="btn-secondary" 
+            @click="cancelOrder"
+          >
+            {{ $t('orderDetail.cancelOrder') }}
+          </button>
+          <button 
+            v-if="order.status === 'shipped'" 
+            class="btn-primary" 
+            @click="confirmReceipt"
+          >
+            {{ $t('orderDetail.confirmReceipt') }}
+          </button>
         </div>
       </div>
     </div>
@@ -83,44 +115,170 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getOrderDetailForCurrentUser } from '../services/orderService'
+import { useI18n } from 'vue-i18n'
+import { isAuthenticated } from '../services/authService'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
-const orderId = computed(() => route.params.id)
-const detail = computed(() => getOrderDetailForCurrentUser(orderId.value))
+const order = ref(null)
+const isLoading = ref(true)
+const error = ref(null)
+const isSellerView = ref(false)
 
-const placeholder =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjZTJlMmUyIi8+PHRleHQgeD0iMTYiIHk9IjQ1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
-
-const formatTime = (iso) => {
-  if (!iso) return '-'
+// Load order from API
+const loadOrder = async () => {
+  isLoading.value = true
+  error.value = null
+  
   try {
-    const d = new Date(iso)
-    return d.toLocaleString()
-  } catch {
-    return iso
+    const orderId = route.params.id
+    const token = localStorage.getItem('token')
+    const isSeller = route.query.seller === 'true'  // Renamed to isSeller
+    
+    // Use different endpoints for seller vs user
+    const endpoint = isSeller 
+      ? `/api/seller/orders/${orderId}` 
+      : `/api/orders/${orderId}`
+    
+    const response = await fetch(endpoint, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to load order')
+    }
+    
+    order.value = await response.json()
+    
+    // Store whether this is seller view - use different variable name
+    isSellerView.value = isSeller  // Fixed: using different names
+    
+  } catch (err) {
+    console.error('Failed to load order:', err)
+    error.value = t('common.loadError')
+  } finally {
+    isLoading.value = false
   }
 }
 
-const statusText = (status) => {
-  const map = {
-    pending: '待处理',
-    paid: '已支付',
-    shipped: '已发货',
-    completed: '已完成',
-    cancelled: '已取消'
-  }
-  return map[status] || status || '未知状态'
+// Format date
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-const goProduct = (productId) => {
-  if (!productId) return
-  router.push(`/product/${productId}`)
+// Get status text
+const getStatusText = (status) => {
+  const statusMap = {
+    'pending': 'Pending Payment',
+    'paid': 'Paid',
+    'shipped': 'Shipped',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled'
+  }
+  return statusMap[status] || status
 }
+
+// Pay order - always succeeds
+const payOrder = async () => {
+  if (!confirm('Proceed to payment?')) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/orders/${order.value.id}/pay`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    const data = await response.json()
+    
+    if (response.ok) {
+      alert('✅ Payment successful! Your order has been confirmed.')
+      await loadOrder() // Reload order
+    } else {
+      alert('❌ ' + (data.error || 'Payment failed'))
+    }
+  } catch (err) {
+    console.error('Payment error:', err)
+    alert('❌ Payment failed. Please try again.')
+  }
+}
+
+// Cancel order
+const cancelOrder = async () => {
+  if (!confirm('Are you sure you want to cancel this order?')) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/orders/${order.value.id}/cancel`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (response.ok) {
+      alert('Order cancelled successfully')
+      await loadOrder()
+    } else {
+      const data = await response.json()
+      alert(data.error || 'Failed to cancel order')
+    }
+  } catch (err) {
+    console.error('Failed to cancel order:', err)
+    alert('Failed to cancel order')
+  }
+}
+
+// Confirm receipt
+const confirmReceipt = async () => {
+  if (!confirm('Have you received your order?')) return
+  
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/orders/${order.value.id}/complete`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (response.ok) {
+      alert('Thank you for confirming! Order completed.')
+      await loadOrder()
+    } else {
+      const data = await response.json()
+      alert(data.error || 'Failed to confirm receipt')
+    }
+  } catch (err) {
+    console.error('Failed to confirm receipt:', err)
+    alert('Failed to confirm receipt')
+  }
+}
+
+// Check authentication
+onMounted(() => {
+  if (!isAuthenticated()) {
+    router.push('/login')
+    return
+  }
+  loadOrder()
+})
 </script>
 
 <style scoped>
@@ -130,166 +288,55 @@ const goProduct = (productId) => {
   background: #FDC1A7;
 }
 
-.page-title {
-  font-size: var(--font-size-xxxl);
-  color: var(--color-primary);
-  text-align: center;
-  margin-bottom: var(--spacing-xxl);
-  font-weight: bold;
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
 }
 
-.empty-state {
-  text-align: center;
-  padding: var(--spacing-xxxl) var(--spacing-lg);
-  background: var(--color-bg);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-lg);
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: var(--spacing-lg);
-}
-
-.content {
-  display: grid;
-  gap: var(--spacing-xl);
-}
-
-.panel {
-  background: var(--color-bg);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: var(--spacing-xl);
-}
-
-.panel-title {
-  font-size: var(--font-size-xl);
-  color: var(--color-primary);
-  margin-bottom: var(--spacing-lg);
-  font-weight: bold;
-}
-
-.top-row {
+/* Loading State */
+.loading-state {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
+  justify-content: center;
+  min-height: 400px;
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xxl);
 }
 
-.order-id {
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.status {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: var(--color-accent);
-  color: var(--color-primary);
-  font-weight: 800;
-}
-
-.meta-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
-}
-
-.meta-item {
-  padding: var(--spacing-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  background: var(--color-bg-light);
-}
-
-.meta-address {
-  grid-column: 1 / -1;
-}
-
-.label {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  margin-bottom: 4px;
-}
-
-.value {
-  color: var(--color-text-primary);
-  font-weight: 600;
-  word-break: break-word;
-}
-
-.items-header,
-.item-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: var(--spacing-md);
-  align-items: center;
-}
-
-.items-header {
-  padding: var(--spacing-md);
-  background: var(--color-bg-light);
-  border-radius: var(--border-radius-md);
-  font-weight: bold;
-  color: var(--color-text-primary);
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
   margin-bottom: var(--spacing-md);
 }
 
-.item-row {
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--color-border);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.item-row.clickable {
-  cursor: pointer;
-  transition: background-color var(--transition-base), transform var(--transition-base);
-}
-
-.item-row.clickable:hover {
-  background: var(--color-bg-light);
-  transform: translateX(2px);
-}
-
-.product-info {
+/* Error State */
+.error-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-md);
+  justify-content: center;
+  min-height: 400px;
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xxl);
 }
 
-.product-image {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--border-radius-md);
-  object-fit: cover;
-  border: 2px solid var(--color-border);
-}
-
-.product-name {
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.product-sub {
-  margin-top: 2px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-
-.total-row {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: var(--spacing-md);
-  margin-top: var(--spacing-md);
-  border-top: 1px solid var(--color-border);
+.error-message {
+  color: var(--color-error);
   font-size: var(--font-size-lg);
-}
-
-.money {
-  color: var(--color-primary);
-  font-weight: 900;
-  margin-left: 6px;
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
 }
 
 .btn-primary {
@@ -300,7 +347,6 @@ const goProduct = (productId) => {
   border-radius: var(--border-radius-md);
   cursor: pointer;
   font-size: var(--font-size-base);
-  font-weight: bold;
   transition: background-color var(--transition-base);
 }
 
@@ -308,9 +354,324 @@ const goProduct = (productId) => {
   background-color: var(--color-primary-dark);
 }
 
-@media (max-width: 767.98px) {
-  .meta-grid {
-    grid-template-columns: 1fr;
+/* Order Content */
+.order-content {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-xl);
+  border: 2px solid var(--color-primary);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  font-size: var(--font-size-xxl);
+  color: var(--color-primary);
+  margin: 0;
+  font-weight: bold;
+}
+
+.back-link {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-base);
+  transition: color var(--transition-base);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+}
+
+/* Status Card */
+.status-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.status-label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+}
+
+.order-status {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.order-status.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.order-status.paid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.order-status.shipped {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.order-status.completed {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.order-status.cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.date-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.date-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.date-value {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+/* Cards */
+.shipping-card,
+.items-card,
+.summary-card {
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.shipping-card h2,
+.items-card h2 {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+.shipping-details p {
+  margin: var(--spacing-xs) 0;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.shipping-details strong {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  min-width: 100px;
+  display: inline-block;
+}
+
+/* Items List */
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.item-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+}
+
+.item-details {
+  flex: 1;
+}
+
+.item-details h3 {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.item-condition {
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.item-price {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.item-subtotal {
+  text-align: right;
+  min-width: 120px;
+}
+
+.subtotal-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-right: var(--spacing-xs);
+}
+
+.subtotal-value {
+  font-size: var(--font-size-lg);
+  font-weight: bold;
+  color: var(--color-primary);
+}
+
+/* Summary Card */
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  color: var(--color-text-secondary);
+}
+
+.summary-row.total {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 2px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: bold;
+}
+
+.total-price {
+  color: var(--color-primary);
+  font-size: var(--font-size-xl);
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+}
+
+.btn-primary,
+.btn-secondary {
+  flex: 1;
+  padding: var(--spacing-md);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.pay-btn {
+  background: #27ae60;
+}
+
+.pay-btn:hover {
+  background: #2ecc71;
+}
+
+.btn-secondary {
+  background: var(--color-bg-light);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-border);
+}
+
+.seller-view-message {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-sm);
+  background: var(--color-accent);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--color-primary-light);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .order-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  
+  .status-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  
+  .order-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .item-subtotal {
+    text-align: center;
+    width: 100%;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .shipping-details p {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .shipping-details strong {
+    min-width: auto;
+    margin-bottom: var(--spacing-xs);
   }
 }
 </style>

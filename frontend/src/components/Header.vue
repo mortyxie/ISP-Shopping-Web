@@ -49,15 +49,15 @@
           </div>
         </div>
 
-        <!-- 购物车 -->
-        <div class="action-item" @click="$router.push('/cart')">
+        <!-- 购物车 - Hide for sellers -->
+        <div v-if="!isSeller" class="action-item" @click="goToCart">
           <span class="action-icon">🛒</span>
           <span class="action-text">{{ $t('header.cart') }}</span>
           <span class="cart-badge" v-if="cartCount > 0">{{ cartCount }}</span>
         </div>
 
-        <!-- 订单 -->
-        <div class="action-item" @click="goOrders">
+        <!-- 我的订单 - Show for customers only -->
+        <div v-if="!isSeller" class="action-item" @click="goToOrders">
           <span class="action-icon">🧾</span>
           <span class="action-text">{{ $t('header.orders') }}</span>
         </div>
@@ -72,8 +72,8 @@
           <span class="action-text">{{ username || $t('header.user') }}</span>
           <div class="user-dropdown" v-if="showUserMenu">
             <div class="dropdown-item" @click="$router.push('/profile')">{{ $t('header.profile') }}</div>
-            <div class="dropdown-item" @click="$router.push('/orders')">{{ $t('header.orders') }}</div>
-            <div class="dropdown-item" @click="$router.push('/wishlist')">{{ $t('header.wishlist') }}</div>
+            <div class="dropdown-item" v-if="!isSeller" @click="$router.push('/wishlist')">{{ $t('header.wishlist') }}</div>
+            <div class="dropdown-item" v-if="isSeller" @click="$router.push('/seller')">Seller Dashboard</div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" @click="handleLogout">{{ $t('header.logout') }}</div>
           </div>
@@ -88,6 +88,8 @@
           <router-link to="/" class="nav-item">{{ $t('header.nav.home') }}</router-link>
           <router-link to="/category" class="nav-item">{{ $t('header.nav.category') }}</router-link>
           <router-link to="/forum" class="nav-item">{{ $t('header.nav.forum') }}</router-link>
+          <!-- Add this line for seller dashboard -->
+          <router-link v-if="isSeller" to="/seller" class="nav-item">Seller Dashboard</router-link>
           <router-link to="/help" class="nav-item">{{ $t('header.nav.help') }}</router-link>
           <router-link to="/about" class="nav-item">{{ $t('header.nav.about') }}</router-link>
         </div>
@@ -112,8 +114,12 @@ const searchKeyword = ref('')
 // 用户状态
 const isLoggedIn = ref(false)
 const username = ref('')
-const cartCount = ref(0)
+const userRole = ref('') 
 
+const cartCount = ref(0)
+const isSeller = computed(() => {
+  return userRole.value === 'seller' || userRole.value === 'admin'
+})
 // 菜单状态
 const showUserMenu = ref(false)
 const showLanguageMenu = ref(false)
@@ -123,6 +129,23 @@ const currentLocale = computed(() => locale.value)
 const currentLanguageText = computed(() => {
   return t(`language.${locale.value}`)
 })
+
+// Add this function with your other methods
+const goToOrders = () => {
+  if (!isLoggedIn.value) {
+    router.push('/login')
+    return
+  }
+  router.push('/orders')
+}
+
+const goToCart = () => {
+  if (!isLoggedIn.value) {
+    router.push('/login')
+    return
+  }
+  router.push('/cart')
+}
 
 // 更新用户状态
 const updateUserState = async () => {
@@ -135,18 +158,14 @@ const updateUserState = async () => {
   if (user) {
     isLoggedIn.value = true
     username.value = user.name || user.username
+    userRole.value = user.role || 'customer'
+    isSeller.value = user.role === 'seller' || user.role === 'admin' 
   } else {
     isLoggedIn.value = false
     username.value = ''
+    userRole.value = ''
+    isSeller.value = false 
   }
-}
-
-const goOrders = () => {
-  if (!isLoggedIn.value) {
-    router.push('/login')
-    return
-  }
-  router.push('/orders')
 }
 
 // 处理搜索
@@ -180,11 +199,14 @@ const changeLanguage = (lang) => {
 }
 
 // 登出
+// 退出登录
 const handleLogout = () => {
-  logout()
-  updateUserState()
-  showUserMenu.value = false
-  router.push('/')
+  if (confirm(t('profile.logoutConfirm'))) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('currentUser')
+    window.dispatchEvent(new Event('userStateChanged'))
+    router.push('/login')
+  }
 }
 
 // 点击外部关闭菜单

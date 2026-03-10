@@ -30,11 +30,46 @@
     "noMessages": "暫無留言",
     "anonymous": "匿名用戶"
   },
+  "profile": {
+    "title": "個人中心",
+    "notLoggedIn": "未登錄",
+    "pleaseLogin": "請登錄後查看個人資料",
+    "userId": "用戶ID",
+    "registeredDate": "註冊日期",
+    "orderCount": "訂單總數",
+    "quickActions": "快捷操作",
+    "myOrders": "我的訂單",
+    "viewOrders": "查看訂單歷史",
+    "myWishlist": "我的收藏",
+    "viewWishlist": "查看收藏的商品",
+    "viewCart": "查看購物車",
+    "logout": "退出登錄",
+    "logoutDesc": "退出當前賬號",
+    "logoutConfirm": "確定要退出登錄嗎？",
+    "forgotPasswordTip": "需要修改密碼？",
+    "customer": "普通用戶",
+    "seller": "商家",
+    "admin": "管理員",
+    "fetchError": "載入個人資料失敗",
+    "profile": {
+    "sellerActions": "商家操作",
+    "sellerDashboard": "商家後台",
+    "manageStore": "管理您的店鋪",
+    "sellerOrders": "訂單管理",
+    "viewSellerOrders": "查看客戶訂單",
+    "myProducts": "商品管理",
+    "manageProducts": "管理您的商品"
+  }
+  },
   "common": {
     "loading": "載入中...",
     "retry": "重試",
     "loadError": "載入數據失敗",
-    "goBack": "返回"
+    "goBack": "返回",
+    "email": "郵箱",
+    "cart": "購物車",
+    "forgotPassword": "重置密碼",
+    "login": "登錄"
   },
   "login": {
     "title": "登錄",
@@ -80,6 +115,22 @@
       "registrationFailed": "註冊失敗，請重試"
     }
   },
+  "forgotPassword": {
+    "title": "忘記密碼",
+    "subtitle": "請輸入您的郵箱地址，我們將發送重置密碼的鏈接",
+    "email": "郵箱地址",
+    "emailPlaceholder": "請輸入您註冊時使用的郵箱",
+    "sendButton": "發送重置鏈接",
+    "sending": "發送中...",
+    "backToLogin": "返回登錄",
+    "success": "密碼重置鏈接已發送到您的郵箱",
+    "error": {
+      "emailRequired": "請輸入郵箱地址",
+      "emailInvalid": "請輸入有效的郵箱地址",
+      "general": "發送失敗，請重試",
+      "network": "網絡錯誤，請稍後重試"
+    }
+  },
   "cart": {
     "title": "購物車",
     "empty": "購物車是空的",
@@ -99,7 +150,8 @@
     "confirmRemove": "確定要刪除這個商品嗎？"
   },
   "productDetail": {
-    "selectCondition": "選擇成色",
+    "condition": "成色",
+    "price": "價格",
     "availableItems": "可選商品",
     "noItems": "該成色下暫無商品",
     "inStock": "有貨",
@@ -107,7 +159,8 @@
     "addToCart": "加入購物車",
     "description": "商品描述",
     "addedToCart": "已加入購物車",
-    "addToCartError": "加入購物車失敗"
+    "addToCartError": "加入購物車失敗",
+    "buyNow": "立即購買"
   },
   "albumDetail": {
     "tracklist": "曲目列表",
@@ -116,6 +169,7 @@
     "noItemsInCondition": "該成色下暫無唱片"
   },
   "category": {
+    "albums": "張專輯",
     "title": "商品分類",
     "subtitle": "瀏覽所有音樂分類，找到你喜歡的唱片",
     "items": "件商品",
@@ -143,6 +197,101 @@
     "countryDesc": "傳統鄉村、現代鄉村、鄉村流行等",
     "world": "世界音樂",
     "worldDesc": "世界各地的傳統與現代音樂"
+  },
+  "search": {
+    "title": "搜索專輯",
+    "placeholder": "按專輯名稱或藝術家搜索...",
+    "button": "搜索",
+    "searching": "搜索中...",
+    "allCategories": "全部分類",
+    "tip": "輸入關鍵詞搜索專輯",
+    "noResults": "未找到專輯",
+    "tryDifferentKeyword": "嘗試其他關鍵詞或瀏覽分類",
+    "loadMore": "載入更多",
+    "loading": "載入中...",
+    "foundAlbums": "找到 {count} 張專輯",
+    "products": "件商品"
+  },
+  "orders": {
+    "title": "我的訂單",
+    "noOrders": "暫無訂單",
+    "noOrdersDesc": "您還沒有下過任何訂單。開始購物，您的訂單將顯示在這裡！",
+    "startShopping": "開始購物",
+    "orderNumber": "訂單號",
+    "total": "總計",
+    "viewDetails": "查看詳情",
+    "payNow": "立即支付",
+    "subtotal": "商品合計",
+    "shipping": "運費",
+    "status": {
+      "pending": "待付款",
+      "paid": "已付款",
+      "shipped": "已發貨",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "payFeature": "支付功能即將推出！"
+  },
+  "orderDetail": {
+    "title": "訂單詳情",
+    "backToList": "返回訂單列表",
+    "status": "訂單狀態",
+    "orderDate": "下單時間",
+    "shippingInfo": "配送信息",
+    "address": "收貨地址",
+    "paymentMethod": "支付方式",
+    "transactionId": "交易單號",
+    "paidAt": "支付時間",
+    "notSpecified": "未指定",
+    "orderItems": "商品清單",
+    "subtotal": "商品合計",
+    "shipping": "運費",
+    "total": "訂單總計",
+    "payNow": "立即支付",
+    "cancelOrder": "取消訂單",
+    "confirmReceipt": "確認收貨",
+    "confirmCancel": "確定要取消這個訂單嗎？",
+    "confirmReceiptMsg": "您確認已經收到商品了嗎？",
+    "cancelFailed": "取消訂單失敗",
+    "confirmFailed": "確認收貨失敗",
+    "payFeature": "支付功能即將推出！"
+  },
+  "checkout": {
+    "title": "結帳",
+    "cartEmpty": "購物車是空的",
+    "cartEmptyDesc": "請在結帳前添加商品到購物車",
+    "continueShopping": "繼續購物",
+    "shippingAddress": "收貨地址",
+    "fullName": "收件人姓名",
+    "fullNamePlaceholder": "請輸入收件人姓名",
+    "addressLine1": "地址第一行",
+    "addressLine1Placeholder": "街道地址",
+    "addressLine2": "地址第二行（可選）",
+    "addressLine2Placeholder": "公寓、套房、單元等",
+    "city": "城市",
+    "cityPlaceholder": "請輸入城市",
+    "postalCode": "郵遞區號",
+    "postalCodePlaceholder": "請輸入郵遞區號",
+    "country": "國家",
+    "selectCountry": "請選擇國家",
+    "other": "其他",
+    "phone": "聯繫電話",
+    "phonePlaceholder": "請輸入聯繫電話",
+    "paymentMethod": "支付方式",
+    "creditCard": "信用卡",
+    "bankTransfer": "銀行轉帳",
+    "cardNumber": "卡號",
+    "cardNumberPlaceholder": "1234 5678 9012 3456",
+    "expiry": "有效期",
+    "orderSummary": "訂單摘要",
+    "subtotal": "商品合計",
+    "shipping": "運費",
+    "total": "訂單總計",
+    "placeOrder": "提交訂單",
+    "processing": "處理中...",
+    "terms": "提交訂單即表示您同意我們的服務條款和隱私政策",
+    "orderSuccess": "訂單提交成功！正在跳轉到訂單詳情...",
+    "orderFailed": "訂單提交失敗，請重試"
   },
   "forum": {
     "placeholder": "分享你的想法...（最多144字）",

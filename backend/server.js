@@ -43,6 +43,19 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+const requireSeller = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'seller') {
+    return res.status(403).json({ error: 'Seller access required' });
+  }
+  next();
+};
+
+const preventSelfBuy = (req, res, next) => {
+  // This will be used in cart endpoints
+  req.preventSelfBuy = true;
+  next();
+};
+
 // ==================== USERS API ====================
 app.post('/api/users/login', (req, res) => {
     const { username, password } = req.body;
@@ -92,115 +105,339 @@ app.post('/api/users/login', (req, res) => {
     );
 });
 
-// ==================== FORGOT PASSWORD API ====================
-// Simple password reset (for development - no email sending)
+// Forgot password - send reset email
 app.post('/api/auth/forgot-password', (req, res) => {
   const { email } = req.body;
-
+  
   if (!email) {
-    return res.status(400).json({
-      success: false,
-      message: '请输入邮箱地址'
-    });
+    return res.status(400).json({ error: 'Email is required' });
   }
+  
+  // Check if user exists
+  db.get('SELECT * FROM Users WHERE email = ?', [email], (err, user) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!user) {
+      // For security, still return success even if email doesn't exist
+      // This prevents email enumeration
+      return res.json({ 
+        success: true, 
+        message: 'If your email exists in our system, you will receive a password reset link.' 
+      });
+    }
+    
+    // In a real application, you would:
+    // 1. Generate a reset token
+    // 2. Save it to database with expiration
+    // 3. Send email with reset link
+    
+    // For now, simulate success
+    console.log(`Password reset requested for: ${email}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Password reset link has been sent to your email.' 
+    });
+  });
+});
 
-  // Check if user exists with this email
+// Get user profile
+app.get('/api/user/profile', authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  
   db.get(
-    'SELECT * FROM Users WHERE email = ?',
-    [email],
+    `SELECT 
+      user_id,
+      username,
+      email,
+      role,
+      avatar_url,
+      created_at
+    FROM Users
+    WHERE user_id = ?`,
+    [userId],
     (err, user) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Get order count for this user
+      db.get(
+        'SELECT COUNT(*) as orderCount FROM Orders WHERE user_id = ?',
+        [userId],
+        (err, orderResult) => {
+          if (err) {
+            console.error('Error fetching order count:', err);
+            return res.json({
+              ...user,
+              orderCount: 0
+            });
+          }
+          
+          res.json({
+            ...user,
+            orderCount: orderResult?.orderCount || 0
+          });
+        }
+      );
+    }
+  );
+});
+
+// ==================== SELLER API ====================
+
+// Get seller's albums
+app.get('/api/seller/albums', authenticateToken, requireSeller, (req, res) => {
+  db.all(
+    `SELECT 
+      a.*,
+      COUNT(p.product_id) as product_count
+    FROM Albums a
+    LEFT JOIN Products p ON a.album_id = p.album_id
+    GROUP BY a.album_id
+    ORDER BY a.created_at DESC`,
+    [],
+    (err, rows) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
+      res.json(rows);
+    }
+  );
+});
 
-      if (!user) {
-        // For security, don't reveal if email exists
-        return res.json({
-          success: true,
-          message: '如果该邮箱已注册，重置密码链接已发送到您的邮箱'
-        });
+// Get seller's products
+app.get('/api/seller/products', authenticateToken, requireSeller, (req, res) => {
+  db.all(
+    `SELECT 
+      p.*,
+      a.title as album_title,
+      a.cover_image_url as album_cover
+    FROM Products p
+    JOIN Albums a ON p.album_id = a.album_id
+    ORDER BY p.created_at DESC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
       }
+      res.json(rows);
+    }
+  );
+});
 
-      // For development: return a temporary reset code
-      // In production, you would send an email with a reset link
-      const tempCode = 'TEMP-' + Date.now();
-      console.log(`Password reset for user ${user.username} (${email}): ${tempCode}`);
+// Get seller's orders
+app.get('/api/seller/orders', authenticateToken, requireSeller, (req, res) => {
+  db.all(
+    `SELECT 
+      o.order_id,
+      o.total_amount,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      u.username as customer_name,
+      COUNT(oi.order_item_id) as item_count
+    FROM Orders o
+    JOIN Users u ON o.user_id = u.user_id
+    JOIN Order_Items oi ON o.order_id = oi.order_id
+    JOIN Products p ON oi.product_id = p.product_id
+    JOIN Albums a ON p.album_id = a.album_id
+    GROUP BY o.order_id
+    ORDER BY o.created_at DESC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows);
+    }
+  );
+});
 
-      res.json({
-        success: true,
-        message: '重置密码链接已生成（开发环境，请查看下方临时码）',
-        // 前端可以用这个码直接访问重设页面
-        resetCode: tempCode,
-        tempLink: `http://localhost:5173/reset-password?email=${email}&code=${tempCode}`
+// Create new album
+app.post('/api/albums', authenticateToken, requireSeller, (req, res) => {
+  const { title, artist, cover_image, genre, tracklist, release_year } = req.body;
+  
+  db.run(
+    `INSERT INTO Albums (title, artist, cover_image_url, genre, tracklist, release_year, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    [title, artist, cover_image, genre, tracklist, release_year],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ 
+        success: true, 
+        album_id: this.lastID,
+        message: 'Album created successfully' 
       });
     }
   );
 });
 
-// Reset password (for development)
-app.post('/api/auth/reset-password', async (req, res) => {
-  const { email, newPassword, code } = req.body;
-
-  if (!email || !newPassword) {
-    return res.status(400).json({
-      success: false,
-      message: '邮箱和新密码不能为空'
-    });
-  }
-
-  // 验证重置码（开发环境）
-  if (!code) {
-    return res.status(400).json({
-      success: false,
-      message: '请输入重置码'
-    });
-  }
-
-  if (newPassword.length < 6) {
-    return res.status(400).json({
-      success: false,
-      message: '密码至少需要6个字符'
-    });
-  }
-
-  // Check if user exists and validate code
-  db.get(
-    'SELECT * FROM Users WHERE email = ?',
-    [email],
-    async (err, user) => {
+// Update album
+app.put('/api/albums/:id', authenticateToken, requireSeller, (req, res) => {
+  const albumId = req.params.id;
+  const { title, artist, cover_image, genre, tracklist, release_year } = req.body;
+  
+  db.run(
+    `UPDATE Albums 
+     SET title = ?, artist = ?, cover_image_url = ?, genre = ?, tracklist = ?, release_year = ?
+     WHERE album_id = ?`,
+    [title, artist, cover_image, genre, tracklist, release_year, albumId],
+    function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
+      res.json({ success: true, message: 'Album updated successfully' });
+    }
+  );
+});
 
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: '用户不存在'
-        });
+// Search albums
+app.get('/api/albums/search', (req, res) => {
+  const { search, genre, limit = 20, offset = 0 } = req.query;
+  
+  let sql = `
+    SELECT 
+      album_id,
+      title,
+      artist,
+      cover_image_url,
+      genre,
+      release_year,
+      (SELECT COUNT(*) FROM Products WHERE album_id = Albums.album_id AND is_active = 1) as product_count
+    FROM Albums
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  if (search) {
+    sql += ' AND (title LIKE ? OR artist LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  
+  if (genre) {
+    sql += ' AND genre = ?';
+    params.push(genre);
+  }
+  
+  sql += ' ORDER BY title LIMIT ? OFFSET ?';
+  params.push(parseInt(limit), parseInt(offset));
+  
+  db.all(sql, params, (err, rows) => {
+    if (err) {
+      console.error('Search error:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Create new product
+app.post('/api/products', authenticateToken, requireSeller, (req, res) => {
+  const { album_id, condition, price, description, images } = req.body;
+  
+  db.run(
+    `INSERT INTO Products (album_id, condition, price, description, image_urls, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+    [album_id, condition, price, description, JSON.stringify(images)], // Store images as JSON string
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
       }
+      res.status(201).json({ 
+        success: true, 
+        product_id: this.lastID,
+        message: 'Product added successfully' 
+      });
+    }
+  );
+});
 
-      try {
-        // Hash new password
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
+// Update product
+app.put('/api/products/:id', authenticateToken, requireSeller, (req, res) => {
+  const productId = req.params.id;
+  const { condition, price, description, images } = req.body;
+  
+  db.run(
+    `UPDATE Products 
+     SET condition = ?, price = ?, description = ?, image_urls = ?
+     WHERE product_id = ?`,
+    [condition, price, description, JSON.stringify(images), productId],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ success: true, message: 'Product updated successfully' });
+    }
+  );
+});
 
-        // Update password
-        db.run(
-          'UPDATE Users SET password_hash = ? WHERE user_id = ?',
-          [hashedPassword, user.user_id],
-          function(err) {
-            if (err) {
-              return res.status(500).json({ error: err.message });
-            }
-
-            res.json({
-              success: true,
-              message: '密码重置成功，请使用新密码登录'
-            });
+// Get single order for seller (by order ID only, no user check)
+app.get('/api/seller/orders/:id', authenticateToken, requireSeller, (req, res) => {
+  const orderId = req.params.id;
+  
+  db.get(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at,
+      u.username as customer_name,
+      u.email as customer_email
+    FROM Orders o
+    JOIN Users u ON o.user_id = u.user_id
+    WHERE o.order_id = ?`,
+    [orderId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      db.all(
+        `SELECT 
+          oi.order_item_id as id,
+          oi.quantity,
+          oi.price_at_purchase as price,
+          p.condition,
+          a.title as name,
+          a.cover_image_url as image
+        FROM Order_Items oi
+        JOIN Products p ON oi.product_id = p.product_id
+        JOIN Albums a ON p.album_id = a.album_id
+        WHERE oi.order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
           }
-        );
-      } catch (error) {
-        res.status(500).json({ error: error.message });
-      }
+          
+          // Calculate subtotal
+          const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          
+          res.json({
+            ...order,
+            items: items || [],
+            subtotal,
+            shipping_cost: 0
+          });
+        }
+      );
     }
   );
 });
@@ -251,13 +488,9 @@ app.get('/api/products', (req, res) => {
     });
 });
 
+// Get single product
 app.get('/api/products/:id', (req, res) => {
     const productId = req.params.id;
-    
-    // Make sure productId is a number
-    if (isNaN(productId)) {
-        return res.status(400).json({ error: 'Invalid product ID' });
-    }
     
     db.get(
         `SELECT 
@@ -265,6 +498,7 @@ app.get('/api/products/:id', (req, res) => {
             a.title as name,
             a.artist,
             a.cover_image_url as image,
+            p.image_urls,  
             p.price,
             p.condition,
             p.description,
@@ -277,7 +511,6 @@ app.get('/api/products/:id', (req, res) => {
         [productId],
         (err, product) => {
             if (err) {
-                console.error('Database error:', err.message);
                 return res.status(500).json({ error: err.message });
             }
             if (!product) {
@@ -286,6 +519,51 @@ app.get('/api/products/:id', (req, res) => {
             res.json(product);
         }
     );
+});
+
+// Delete product - SELLER CAN ALWAYS DO IT
+app.delete('/api/products/:id', authenticateToken, requireSeller, (req, res) => {
+  const productId = req.params.id;
+  
+  // First, delete from Cart_Items (foreign key constraint)
+  db.run('DELETE FROM Cart_Items WHERE product_id = ?', [productId], (err) => {
+    if (err) {
+      console.error('Error deleting from cart:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    
+    // Then delete from Order_Items
+    db.run('DELETE FROM Order_Items WHERE product_id = ?', [productId], (err) => {
+      if (err) {
+        console.error('Error deleting from order items:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Finally delete the product
+      db.run('DELETE FROM Products WHERE product_id = ?', [productId], function(err) {
+        if (err) {
+          console.error('Error deleting product:', err);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        res.json({ success: true, message: 'Product deleted successfully' });
+      });
+    });
+  });
+});
+
+// Toggle product - SELLER CAN ALWAYS DO IT
+app.put('/api/products/:id/toggle', authenticateToken, requireSeller, (req, res) => {
+  const productId = req.params.id;
+  
+  db.run(
+    `UPDATE Products SET is_active = NOT is_active WHERE product_id = ?`,
+    [productId],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
 });
 
 // ==================== CART API ====================
@@ -299,7 +577,8 @@ app.get('/api/cart', authenticateToken, (req, res) => {
         a.artist,
         a.cover_image_url as image,
         p.price,
-        p.condition
+        p.condition,
+        p.is_active
     FROM Cart_Items ci
     JOIN Products p ON ci.product_id = p.product_id
     JOIN Albums a ON p.album_id = a.album_id
@@ -310,48 +589,38 @@ app.get('/api/cart', authenticateToken, (req, res) => {
         console.error('Database error:', err);
         return res.status(500).json({ error: err.message });
       }
-      res.json(items || []);
+      // Filter out inactive products
+      const activeItems = (items || []).filter(item => item.is_active === 1);
+      res.json(activeItems);
     }
   );
 });
 
-// Add to cart (always quantity 1)
+// Add to cart - SIMPLE: just check if product exists
 app.post('/api/cart/add', authenticateToken, (req, res) => {
   const { product_id } = req.body;
   const userId = req.user.userId;
   
   // Check if product exists
   db.get('SELECT * FROM Products WHERE product_id = ?', [product_id], (err, product) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
+    if (err) return res.status(500).json({ error: err.message });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
     
     // Check if already in cart
     db.get(
       'SELECT * FROM Cart_Items WHERE user_id = ? AND product_id = ?',
       [userId, product_id],
-      (err, existingItem) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
+      (err, existing) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (existing) return res.status(400).json({ error: 'Product already in cart' });
         
-        if (existingItem) {
-          // Product already in cart - don't add duplicate
-          return res.status(400).json({ error: 'Item already in cart' });
-        }
-        
-        // Add new item with quantity 1
+        // Add to cart
         db.run(
           'INSERT INTO Cart_Items (user_id, product_id, quantity) VALUES (?, ?, 1)',
           [userId, product_id],
           function(err) {
-            if (err) {
-              return res.status(500).json({ error: err.message });
-            }
-            res.json({ success: true, message: 'Item added to cart' });
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
           }
         );
       }
@@ -386,6 +655,459 @@ app.delete('/api/cart/clear', authenticateToken, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
       res.json({ success: true });
+    }
+  );
+});
+
+// Get cart summary
+app.get('/api/cart/summary', authenticateToken, (req, res) => {
+  db.get(
+    `SELECT 
+        COUNT(*) as count
+    FROM Cart_Items ci
+    JOIN Products p ON ci.product_id = p.product_id
+    WHERE ci.user_id = ? AND p.is_active = 1`,
+    [req.user.userId],
+    (err, summary) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({
+        count: summary?.count || 0
+      });
+    }
+  );
+});
+
+// ==================== ORDERS API ====================
+
+// Create order - SIMPLE: just move cart to order
+app.post('/api/orders/create', authenticateToken, (req, res) => {
+  const { shipping_address, payment_method } = req.body;
+  const userId = req.user.userId;
+  
+  if (!shipping_address) {
+    return res.status(400).json({ error: 'Shipping address required' });
+  }
+  
+  db.serialize(() => {
+    db.run('BEGIN TRANSACTION');
+    
+    // Get cart items
+    db.all(
+      `SELECT ci.product_id, p.price
+      FROM Cart_Items ci
+      JOIN Products p ON ci.product_id = p.product_id
+      WHERE ci.user_id = ?`,
+      [userId],
+      (err, cartItems) => {
+        if (err || !cartItems || cartItems.length === 0) {
+          db.run('ROLLBACK');
+          return res.status(400).json({ error: 'Cart is empty' });
+        }
+        
+        // Calculate total (simplified)
+        const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+        const shipping = subtotal >= 500 ? 0 : 50;
+        const total = subtotal + shipping;
+        
+        // Create order
+        db.run(
+          `INSERT INTO Orders (user_id, total_amount, shipping_address, payment_method, status, created_at)
+           VALUES (?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)`,
+          [userId, total, shipping_address, payment_method],
+          function(err) {
+            if (err) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: err.message });
+            }
+            
+            const orderId = this.lastID;
+            
+            // Create order items
+            const stmt = db.prepare(
+              'INSERT INTO Order_Items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, 1, ?)'
+            );
+            cartItems.forEach(item => {
+              stmt.run([orderId, item.product_id, item.price]);
+            });
+            stmt.finalize();
+            
+            // Clear cart
+            db.run('DELETE FROM Cart_Items WHERE user_id = ?', [userId], (err) => {
+              if (err) {
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: err.message });
+              }
+              
+              db.run('COMMIT');
+              res.json({ success: true, order_id: orderId });
+            });
+          }
+        );
+      }
+    );
+  });
+});
+
+// Get user's orders
+app.get('/api/orders', authenticateToken, (req, res) => {
+  const userId = req.user.userId;
+  
+  db.all(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at as date,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at
+    FROM Orders o
+    WHERE o.user_id = ?
+    ORDER BY o.created_at DESC`,
+    [userId],
+    (err, orders) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Get items for each order
+      const ordersWithItems = orders.map(order => {
+        return new Promise((resolve, reject) => {
+          db.all(
+            `SELECT 
+              oi.order_item_id as id,
+              oi.quantity,
+              oi.price_at_purchase as price,
+              p.condition,
+              a.title as name,
+              a.cover_image_url as image,
+              p.is_active
+            FROM Order_Items oi
+            JOIN Products p ON oi.product_id = p.product_id
+            JOIN Albums a ON p.album_id = a.album_id
+            WHERE oi.order_id = ?`,
+            [order.id],
+            (err, items) => {
+              if (err) reject(err);
+              
+              // Check if any items in this order are now inactive (sold elsewhere)
+              const hasInactiveItems = items.some(item => item.is_active === 0);
+              
+              resolve({
+                ...order,
+                items: items || [],
+                hasInactiveItems
+              });
+            }
+          );
+        });
+      });
+      
+      Promise.all(ordersWithItems)
+        .then(results => {
+          // Filter out orders that have inactive items (products sold elsewhere)
+          const validOrders = results.filter(order => !order.hasInactiveItems);
+          res.json(validOrders);
+        })
+        .catch(err => res.status(500).json({ error: err.message }));
+    }
+  );
+});
+
+// Get single order for user
+app.get('/api/orders/:id', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at
+    FROM Orders o
+    WHERE o.order_id = ? AND o.user_id = ?`,
+    [orderId, userId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      db.all(
+        `SELECT 
+          oi.order_item_id as id,
+          oi.quantity,
+          oi.price_at_purchase as price,
+          p.condition,
+          a.title as name,
+          a.cover_image_url as image
+        FROM Order_Items oi
+        JOIN Products p ON oi.product_id = p.product_id
+        JOIN Albums a ON p.album_id = a.album_id
+        WHERE oi.order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Calculate subtotal (items total before shipping)
+          const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          
+          // Shipping is free over 500, otherwise 50
+          const shipping = subtotal >= 500 ? 0 : 50;
+          
+          res.json({
+            ...order,
+            items: items || [],
+            subtotal,
+            shipping_cost: shipping,
+            total: order.total // total_amount from database already includes shipping
+          });
+        }
+      );
+    }
+  );
+});
+
+// Get single order for seller
+app.get('/api/seller/orders/:id', authenticateToken, requireSeller, (req, res) => {
+  const orderId = req.params.id;
+  
+  db.get(
+    `SELECT 
+      o.order_id as id,
+      o.total_amount as total,
+      o.status,
+      o.created_at,
+      o.shipping_address,
+      o.payment_method,
+      o.transaction_id,
+      o.paid_at,
+      u.username as customer_name,
+      u.email as customer_email
+    FROM Orders o
+    JOIN Users u ON o.user_id = u.user_id
+    WHERE o.order_id = ?`,
+    [orderId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      db.all(
+        `SELECT 
+          oi.order_item_id as id,
+          oi.quantity,
+          oi.price_at_purchase as price,
+          p.condition,
+          a.title as name,
+          a.cover_image_url as image
+        FROM Order_Items oi
+        JOIN Products p ON oi.product_id = p.product_id
+        JOIN Albums a ON p.album_id = a.album_id
+        WHERE oi.order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Calculate subtotal
+          const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+          const shipping = subtotal >= 500 ? 0 : 50;
+          
+          res.json({
+            ...order,
+            items: items || [],
+            subtotal,
+            shipping_cost: shipping,
+            total: order.total
+          });
+        }
+      );
+    }
+  );
+});
+
+// Cancel order - reactivate products
+app.put('/api/orders/:id/cancel', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT status FROM Orders WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      if (order.status !== 'pending') {
+        return res.status(400).json({ error: 'Only pending orders can be cancelled' });
+      }
+      
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // Get products in this order
+        db.all(
+          'SELECT product_id FROM Order_Items WHERE order_id = ?',
+          [orderId],
+          (err, items) => {
+            if (err) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: err.message });
+            }
+            
+            // Reactivate products
+            const stmt = db.prepare('UPDATE Products SET is_active = 1 WHERE product_id = ?');
+            items.forEach(item => {
+              stmt.run([item.product_id]);
+            });
+            stmt.finalize();
+            
+            // Update order status
+            db.run(
+              'UPDATE Orders SET status = ? WHERE order_id = ?',
+              ['cancelled', orderId],
+              function(err) {
+                if (err) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: err.message });
+                }
+                
+                db.run('COMMIT');
+                res.json({ success: true, message: 'Order cancelled successfully' });
+              }
+            );
+          }
+        );
+      });
+    }
+  );
+});
+
+// Complete order (confirm receipt)
+app.put('/api/orders/:id/complete', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT status FROM Orders WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, order) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      
+      if (order.status !== 'shipped') {
+        return res.status(400).json({ error: 'Only shipped orders can be completed' });
+      }
+      
+      db.run(
+        'UPDATE Orders SET status = ? WHERE order_id = ?',
+        ['completed', orderId],
+        function(err) {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          res.json({ success: true, message: 'Order completed successfully' });
+        }
+      );
+    }
+  );
+});
+
+// Pay order - SIMPLE: check if product still active, then deactivate
+app.post('/api/orders/:id/pay', authenticateToken, (req, res) => {
+  const orderId = req.params.id;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT * FROM Orders WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, order) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!order) return res.status(404).json({ error: 'Order not found' });
+      if (order.status !== 'pending') return res.status(400).json({ error: 'Order not pending' });
+      
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // Get products
+        db.all(
+          'SELECT product_id FROM Order_Items WHERE order_id = ?',
+          [orderId],
+          (err, items) => {
+            if (err) {
+              db.run('ROLLBACK');
+              return res.status(500).json({ error: err.message });
+            }
+            
+            // Check if any product is already sold
+            const productIds = items.map(item => item.product_id);
+            const placeholders = productIds.map(() => '?').join(',');
+            
+            db.all(
+              `SELECT product_id FROM Products WHERE product_id IN (${placeholders}) AND is_active = 0`,
+              productIds,
+              (err, soldProducts) => {
+                if (err) {
+                  db.run('ROLLBACK');
+                  return res.status(500).json({ error: err.message });
+                }
+                
+                if (soldProducts && soldProducts.length > 0) {
+                  db.run('ROLLBACK');
+                  return res.status(400).json({ error: 'Some products already sold' });
+                }
+                
+                // Deactivate products
+                const stmt = db.prepare('UPDATE Products SET is_active = 0 WHERE product_id = ?');
+                items.forEach(item => stmt.run([item.product_id]));
+                stmt.finalize();
+                
+                // Update order
+                db.run(
+                  `UPDATE Orders SET status = 'paid', paid_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+                  [orderId],
+                  function(err) {
+                    if (err) {
+                      db.run('ROLLBACK');
+                      return res.status(500).json({ error: err.message });
+                    }
+                    
+                    db.run('COMMIT');
+                    res.json({ success: true });
+                  }
+                );
+              }
+            );
+          }
+        );
+      });
     }
   );
 });
@@ -755,32 +1477,35 @@ app.get('/api/albums/:id/with-products', (req, res) => {
 
 // Get products by album ID
 app.get('/api/albums/:id/products', (req, res) => {
-    const albumId = req.params.id;
-    
-    db.all(
-        `SELECT 
-            product_id as id,
-            condition,
-            price,
-            description
-        FROM Products
-        WHERE album_id = ? AND is_active = 1
-        ORDER BY 
-            CASE condition
-                WHEN 'Mint' THEN 1
-                WHEN 'Near Mint' THEN 2
-                WHEN 'Good' THEN 3
-                ELSE 4
-            END`,
-        [albumId],
-        (err, rows) => {
-            if (err) {
-                console.error('Database error:', err);
-                return res.status(500).json({ error: err.message });
-            }
-            res.json(rows);
-        }
-    );
+  const albumId = req.params.id;
+  
+  db.all(
+    `SELECT 
+      product_id as id,
+      condition,
+      price,
+      description,
+      image_urls,
+      is_active
+    FROM Products
+    WHERE album_id = ?
+    ORDER BY 
+      CASE condition
+        WHEN 'Mint' THEN 1
+        WHEN 'Near Mint' THEN 2
+        WHEN 'Good' THEN 3
+        ELSE 4
+      END`,
+    [albumId],
+    (err, rows) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      console.log('Products from DB with images:', rows); // Debug log
+      res.json(rows);
+    }
+  );
 });
 
 // Get featured albums (most products)

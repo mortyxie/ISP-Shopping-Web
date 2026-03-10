@@ -3,18 +3,18 @@
     <div class="container">
       <div class="forgot-password-container">
         <div class="forgot-password-card">
-          <h1 class="page-title">忘记密码</h1>
-          <p class="subtitle">请输入您的邮箱地址，我们将发送重置密码的链接</p>
+          <h1 class="page-title">{{ $t('forgotPassword.title') }}</h1>
+          <p class="subtitle">{{ $t('forgotPassword.subtitle') }}</p>
 
           <form @submit.prevent="handleForgotPassword" class="forgot-password-form">
             <!-- 邮箱输入框 -->
             <div class="form-group">
-              <label for="email">邮箱地址</label>
+              <label for="email">{{ $t('forgotPassword.email') }}</label>
               <input
                 id="email"
                 type="email"
                 v-model="form.email"
-                placeholder="请输入您注册时使用的邮箱"
+                :placeholder="$t('forgotPassword.emailPlaceholder')"
                 class="form-input"
                 autocomplete="email"
                 required
@@ -37,14 +37,14 @@
               class="submit-button"
               :disabled="isLoading"
             >
-              {{ isLoading ? '发送中...' : '发送重置链接' }}
+              {{ isLoading ? $t('forgotPassword.sending') : $t('forgotPassword.sendButton') }}
             </button>
           </form>
 
           <!-- 返回登录 -->
           <div class="back-to-login">
             <router-link to="/login" class="link">
-              ← 返回登录
+              ← {{ $t('forgotPassword.backToLogin') }}
             </router-link>
           </div>
         </div>
@@ -56,9 +56,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const form = ref({
   email: ''
@@ -76,14 +77,14 @@ const handleForgotPassword = async () => {
 
   // 验证输入
   if (!form.value.email.trim()) {
-    errorMessage.value = '请输入邮箱地址'
+    errorMessage.value = t('forgotPassword.error.emailRequired')
     return
   }
 
   // 简单邮箱格式验证
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(form.value.email)) {
-    errorMessage.value = '请输入有效的邮箱地址'
+    errorMessage.value = t('forgotPassword.error.emailInvalid')
     return
   }
 
@@ -91,30 +92,29 @@ const handleForgotPassword = async () => {
 
   try {
     // 调用后端API
-    const response = await axios.post('/api/auth/forgot-password', {
-      email: form.value.email
+    const response = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email: form.value.email })
     })
 
-    if (response.data.success) {
-      // 获取临时重置码
-      const tempCode = response.data.resetCode || ''
-      const email = form.value.email
+    const data = await response.json()
 
-      successMessage.value = '重置链接已生成，正在跳转...'
+    if (response.ok) {
+      successMessage.value = data.message || t('forgotPassword.success')
 
-      // 1秒后跳转到重设页面，带上email和code参数
+      // 3秒后返回登录页
       setTimeout(() => {
-        router.push({
-          path: '/reset-password',
-          query: { email, code: tempCode }
-        })
-      }, 1000)
+        router.push('/login')
+      }, 3000)
     } else {
-      errorMessage.value = response.data.message || '发送失败，请重试'
+      errorMessage.value = data.error || t('forgotPassword.error.general')
     }
   } catch (error) {
     console.error('Forgot password error:', error)
-    errorMessage.value = '网络错误，请稍后重试'
+    errorMessage.value = t('forgotPassword.error.network')
   } finally {
     isLoading.value = false
   }
@@ -170,9 +170,17 @@ const handleForgotPassword = async () => {
   }
 }
 
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+  width: 100%;
+}
+
 .forgot-password-container {
   width: 100%;
   max-width: 450px;
+  margin: 0 auto;
   position: relative;
   z-index: 1;
 }

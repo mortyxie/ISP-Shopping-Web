@@ -75,7 +75,7 @@ export function createOrderFromDraft(draft, options = {}) {
   }
 
   const payment_method = draft?.payment_method
-  const allowedPayments = ['支付宝', '微信', 'PayPal']
+  const allowedPayments = ['支付宝', '微信', 'Mpay']
   if (!allowedPayments.includes(payment_method)) {
     return { success: false, message: '请选择支付方式' }
   }

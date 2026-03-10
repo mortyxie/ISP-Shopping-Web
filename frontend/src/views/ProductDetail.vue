@@ -17,74 +17,49 @@
 
       <!-- Product Content -->
       <div v-else class="product-main">
-        <!-- 左侧：商品大图 -->
+        <!-- 左侧：商品大图 with navigation buttons -->
         <div class="product-image-section">
           <div class="main-image-wrapper">
-            <img :src="productImage" :alt="productName" class="main-image" />
+            <img :src="currentImage" :alt="productName" class="main-image" />
+            
+            <!-- Navigation buttons -->
+            <div class="image-nav" v-if="productImages.length > 1">
+              <button class="nav-btn prev" @click="prevImage">‹</button>
+              <button class="nav-btn next" @click="nextImage">›</button>
+            </div>
+            
+            <!-- Image counter -->
+            <div class="image-counter" v-if="productImages.length > 1">
+              {{ currentIndex + 1 }} / {{ productImages.length }}
+            </div>
           </div>
         </div>
 
-        <!-- 右侧：成色选择和商品列表 -->
+        <!-- 右侧：商品信息 -->
         <div class="product-info-section">
           <h1 class="product-title">{{ productName }}</h1>
           
           <!-- 艺术家信息 -->
           <p class="product-artist">{{ productArtist }}</p>
           
-          <!-- 成色类别选择 -->
-          <div class="condition-selector">
-            <h3 class="selector-title">{{ $t('productDetail.selectCondition') }}</h3>
-            <div class="condition-tabs">
-              <button
-                v-for="condition in availableConditions"
-                :key="condition.condition"
-                class="condition-tab"
-                :class="{ 
-                  active: selectedCondition === condition.condition,
-                  'out-of-stock': condition.count === 0 
-                }"
-                @click="selectCondition(condition.condition)"
-                :disabled="condition.count === 0"
-              >
-                <span class="condition-label">{{ condition.condition }}</span>
-                <span class="item-count">({{ condition.count }})</span>
-                <span v-if="condition.count > 0" class="stock-badge in-stock">
-                  {{ $t('productDetail.inStock') }}
-                </span>
-                <span v-else class="stock-badge out-of-stock">
-                  {{ $t('productDetail.outOfStock') }}
-                </span>
-              </button>
+          <!-- Product details - simplified -->
+          <div class="product-details-simple">
+            <div class="detail-row">
+              <span class="detail-label">{{ $t('productDetail.condition') }}:</span>
+              <span class="detail-value">{{ productCondition }}</span>
             </div>
-          </div>
-
-          <!-- 商品列表 -->
-          <div class="product-variants">
-            <h3 class="variants-title">{{ $t('productDetail.availableItems') }}</h3>
-            <div v-if="currentProducts.length === 0" class="no-variants">
-              {{ $t('productDetail.noItems') }}
+            <div class="detail-row">
+              <span class="detail-label">{{ $t('productDetail.price') }}:</span>
+              <span class="detail-value price">¥{{ productPrice.toFixed(2) }}</span>
             </div>
-            <div v-else class="variants-list">
-              <div
-                v-for="product in currentProducts"
-                :key="product.id"
-                class="variant-item"
-                :class="{ selected: selectedProduct?.id === product.id }"
-                @click="selectProduct(product)"
-              >
-                <div class="variant-info">
-                  <span class="variant-condition">{{ product.condition }}</span>
-                  <span class="variant-price">¥{{ product.price.toFixed(2) }}</span>
-                </div>
-                <div class="variant-description" v-if="product.description">
-                  {{ product.description }}
-                </div>
-              </div>
+            <div class="detail-row description">
+              <span class="detail-label">{{ $t('productDetail.description') }}:</span>
+              <p class="detail-value">{{ productDescription }}</p>
             </div>
           </div>
 
           <!-- 操作按钮 -->
-          <div class="product-actions" v-if="selectedProduct">
+          <div class="product-actions" v-if="!isSeller">
             <button
               class="btn-add-cart"
               @click="addToCart"
@@ -95,17 +70,9 @@
               class="btn-buy-now"
               @click="buyNow"
             >
-              立即购买
+              {{ $t('productDetail.buyNow') }}
             </button>
           </div>
-        </div>
-      </div>
-
-      <!-- 下方：商品描述 -->
-      <div class="product-description-section" v-if="selectedProduct && !isLoading && !error">
-        <h2 class="description-title">{{ $t('productDetail.description') }}</h2>
-        <div class="description-content">
-          <p>{{ selectedProduct.description }}</p>
         </div>
       </div>
     </div>
@@ -121,6 +88,8 @@ import { getProduct } from '../services/productService'
 import { isAuthenticated } from '../services/authService'
 import { setCheckoutDraft } from '../services/orderService'
 
+const isSeller = ref(false)
+
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
@@ -129,65 +98,41 @@ const { t } = useI18n()
 const isLoading = ref(true)
 const error = ref(null)
 
-// Product data
+// Product data - simplified
 const productId = computed(() => parseInt(route.params.id))
-const productData = ref(null)
 const productName = ref('')
 const productArtist = ref('')
-const productImage = ref('')
-const allProducts = ref([])
+const productCondition = ref('')
+const productPrice = ref(0)
+const productDescription = ref('')
 
-// Selected condition and product
-const selectedCondition = ref('')
-const selectedProduct = ref(null)
-
-// Get unique conditions with counts
-const availableConditions = computed(() => {
-  const conditionMap = new Map()
-  
-  allProducts.value.forEach(product => {
-    const condition = product.condition
-    conditionMap.set(condition, (conditionMap.get(condition) || 0) + 1)
-  })
-  
-  return Array.from(conditionMap.entries()).map(([condition, count]) => ({
-    condition,
-    count
-  }))
+// Image gallery
+const currentIndex = ref(0)
+const productImages = ref([])
+const currentImage = computed(() => {
+  return productImages.value[currentIndex.value] || ''
 })
 
-// Get products for selected condition
-const currentProducts = computed(() => {
-  if (!selectedCondition.value) return []
-  return allProducts.value.filter(p => p.condition === selectedCondition.value)
-})
-
-// Select condition
-const selectCondition = (condition) => {
-  selectedCondition.value = condition
-  selectedProduct.value = currentProducts.value[0] || null
+// Image navigation functions
+const nextImage = () => {
+  if (productImages.value.length === 0) return
+  currentIndex.value = (currentIndex.value + 1) % productImages.value.length
 }
 
-// Select product
-const selectProduct = (product) => {
-  selectedProduct.value = product
+const prevImage = () => {
+  if (productImages.value.length === 0) return
+  currentIndex.value = (currentIndex.value - 1 + productImages.value.length) % productImages.value.length
 }
 
 // Add to cart
 const addToCart = async () => {
-  if (!selectedProduct.value) return
-  
   try {
-    const result = await addItemToCart(selectedProduct.value.id)
+    const result = await addItemToCart(productId.value, 1)
     if (result.success) {
       alert(t('productDetail.addedToCart'))
       window.dispatchEvent(new Event('cartUpdated'))
     } else {
-      if (result.error === 'Item already in cart') {
-        alert('This item is already in your cart')
-      } else {
-        alert(t('productDetail.addToCartError'))
-      }
+      alert(t('productDetail.addToCartError'))
     }
   } catch (error) {
     console.error('Failed to add to cart:', error)
@@ -195,63 +140,81 @@ const addToCart = async () => {
   }
 }
 
+// Buy Now
 const buyNow = () => {
-  if (!selectedProduct.value) return
+  // Check if product is loaded
+  if (!productId.value) {
+    alert('Product not found')
+    return
+  }
+  
   if (!isAuthenticated()) {
-    router.push('/login')
+    // Save the intended product to redirect back after login
+    sessionStorage.setItem('buyNowProduct', JSON.stringify({
+      product_id: productId.value,
+      price: productPrice.value,
+      name: productName.value,
+      artist: productArtist.value,
+      image: currentImage.value,
+      condition: productCondition.value
+    }))
+    router.push('/login?redirect=buynow')
     return
   }
 
-  setCheckoutDraft({
+  // Clear any existing draft first
+  sessionStorage.removeItem('checkout_draft')
+  
+  // Create new draft in sessionStorage
+  const draft = {
     source: 'product',
     items: [
       {
-        product_id: selectedProduct.value.id,
-        price_at_purchase: selectedProduct.value.price,
+        product_id: productId.value,
+        price_at_purchase: productPrice.value,
         quantity: 1,
         name: productName.value,
         artist: productArtist.value,
-        image: productImage.value,
-        condition: selectedProduct.value.condition
+        image: currentImage.value || productImage.value,
+        condition: productCondition.value
       }
     ]
-  })
+  }
+  
+  sessionStorage.setItem('checkout_draft', JSON.stringify(draft))
   router.push('/checkout')
 }
 
-// Load product data
+// Load product data from backend
 const loadProduct = async () => {
   isLoading.value = true
   error.value = null
   
   try {
     console.log(`Loading product ID: ${productId.value}`)
-    
-    // Get the current product
     const product = await getProduct(productId.value)
     console.log('Product data:', product)
     
-    productData.value = product
     productName.value = product.name
     productArtist.value = product.artist
-    productImage.value = product.image
+    productCondition.value = product.condition
+    productPrice.value = product.price
+    productDescription.value = product.description || `${product.condition} condition copy`
     
-    // Since we don't have all products for this album yet,
-    // we'll just show this single product for now
-    allProducts.value = [{
-      id: product.id,
-      condition: product.condition,
-      price: product.price,
-      description: product.description || `${product.condition} condition copy`
-    }]
-    
-    // Set default selections
-    if (availableConditions.value.length > 0) {
-      selectedCondition.value = availableConditions.value[0].condition
-      if (currentProducts.value.length > 0) {
-        selectedProduct.value = currentProducts.value[0]
+    // Handle product images
+    if (product.image_urls) {
+      try {
+        productImages.value = typeof product.image_urls === 'string' 
+          ? JSON.parse(product.image_urls) 
+          : product.image_urls
+      } catch (e) {
+        console.error('Error parsing images:', e)
+        productImages.value = [product.image]
       }
+    } else {
+      productImages.value = [product.image]
     }
+    currentIndex.value = 0
     
   } catch (err) {
     console.error('Failed to load product:', err)
@@ -266,6 +229,11 @@ onMounted(() => {
     router.push('/')
     return
   }
+  // Check if current user is a seller
+  const user = JSON.parse(localStorage.getItem('currentUser') || '{}')
+  isSeller.value = user.role === 'seller' || user.role === 'admin'
+  console.log('Is seller:', isSeller.value)
+  
   loadProduct()
 })
 </script>
@@ -348,6 +316,7 @@ onMounted(() => {
 }
 
 .main-image-wrapper {
+  position: relative;
   background: var(--color-bg);
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-lg);
@@ -360,6 +329,56 @@ onMounted(() => {
   height: auto;
   border-radius: var(--border-radius-md);
   display: block;
+}
+
+/* Navigation buttons */
+.image-nav {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.nav-btn:hover {
+  background: var(--color-primary);
+  color: white;
+  transform: scale(1.1);
+}
+
+.image-counter {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 10;
 }
 
 .product-info-section {
@@ -380,155 +399,60 @@ onMounted(() => {
   font-size: var(--font-size-lg);
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.condition-selector {
-  margin-bottom: var(--spacing-xl);
+/* Product details simple */
+.product-details-simple {
+  margin: var(--spacing-xl) 0;
+  padding: var(--spacing-lg) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.selector-title {
-  font-size: var(--font-size-lg);
-  color: var(--color-text-primary);
-  margin-bottom: var(--spacing-md);
-  font-weight: bold;
-}
-
-.condition-tabs {
+.detail-row {
   display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.condition-tab {
-  padding: var(--spacing-md) var(--spacing-lg);
-  padding-bottom: 30px;
-  border: 2px solid var(--color-border);
-  background: var(--color-bg);
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-  font-size: var(--font-size-base);
-  color: var(--color-text-primary);
-  transition: all var(--transition-base);
-  font-weight: 500;
-  position: relative;
-  min-width: 100px;
-}
-
-.condition-tab:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  background: var(--color-accent);
-}
-
-.condition-tab.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.condition-tab.out-of-stock {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.item-count {
-  font-size: var(--font-size-sm);
-  opacity: 0.8;
-  margin-left: 4px;
-}
-
-.stock-badge {
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.7rem;
-  padding: 2px 8px;
-  border-radius: 12px;
-  white-space: nowrap;
-}
-
-.stock-badge.in-stock {
-  background-color: var(--color-success);
-  color: white;
-}
-
-.stock-badge.out-of-stock {
-  background-color: var(--color-error);
-  color: white;
-}
-
-.product-variants {
-  margin-bottom: var(--spacing-xl);
-}
-
-.variants-title {
-  font-size: var(--font-size-lg);
-  color: var(--color-text-primary);
   margin-bottom: var(--spacing-md);
-  font-weight: bold;
 }
 
-.no-variants {
-  padding: var(--spacing-lg);
-  text-align: center;
+.detail-label {
+  width: 100px;
   color: var(--color-text-secondary);
-  background: var(--color-bg-light);
-  border-radius: var(--border-radius-md);
-}
-
-.variants-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
-}
-
-.variant-item {
-  padding: var(--spacing-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  background: var(--color-bg);
-}
-
-.variant-item:hover {
-  border-color: var(--color-primary);
-  background: var(--color-accent);
-  transform: translateX(4px);
-}
-
-.variant-item.selected {
-  border-color: var(--color-primary);
-  background: var(--color-accent);
-  box-shadow: var(--shadow-md);
-}
-
-.variant-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.variant-condition {
-  font-size: var(--font-size-base);
-  color: var(--color-text-primary);
   font-weight: 500;
 }
 
-.variant-price {
-  font-size: var(--font-size-lg);
+.detail-value {
+  flex: 1;
+  color: var(--color-text-primary);
+}
+
+.detail-value.price {
   color: var(--color-primary);
   font-weight: bold;
+  font-size: var(--font-size-xl);
 }
 
-.variant-description {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-top: var(--spacing-xs);
+.detail-row.description {
+  flex-direction: column;
 }
 
+.detail-row.description .detail-label {
+  width: 100%;
+  margin-bottom: var(--spacing-xs);
+}
+
+.detail-row.description .detail-value {
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Action buttons */
 .product-actions {
   margin-top: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
 }
 
 .btn-add-cart {
@@ -550,14 +474,8 @@ onMounted(() => {
   box-shadow: var(--shadow-md);
 }
 
-.btn-add-cart:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .btn-buy-now {
   width: 100%;
-  margin-top: var(--spacing-md);
   padding: var(--spacing-md) var(--spacing-lg);
   background: var(--color-bg-light);
   color: var(--color-primary);
@@ -575,31 +493,18 @@ onMounted(() => {
   box-shadow: var(--shadow-md);
 }
 
-.product-description-section {
-  background: var(--color-bg);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-xl);
-  box-shadow: var(--shadow-md);
-  border-top: 4px solid var(--color-primary);
-}
-
-.description-title {
-  font-size: var(--font-size-xxl);
-  color: var(--color-primary);
-  margin-bottom: var(--spacing-lg);
-  font-weight: bold;
-}
-
-.description-content {
+.seller-message {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--color-accent);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-primary);
   font-size: var(--font-size-base);
-  color: var(--color-text-primary);
-  line-height: 1.8;
 }
 
-.description-content p {
-  margin: 0;
-}
-
+/* Responsive */
 @media (max-width: 992px) {
   .product-main {
     grid-template-columns: 1fr;
@@ -610,13 +515,20 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 767.98px) {
-  .condition-tabs {
+@media (max-width: 768px) {
+  .nav-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+  }
+  
+  .detail-row {
     flex-direction: column;
   }
-
-  .condition-tab {
+  
+  .detail-label {
     width: 100%;
+    margin-bottom: var(--spacing-xs);
   }
 }
 </style>

@@ -95,7 +95,7 @@
               <div class="album-info">
                 <p class="album-title">{{ album.title }}</p>
                 <p class="album-artist">{{ album.artist }}</p>
-                <p class="album-count">{{ album.product_count }} copies available</p>
+                <p class="album-count">{{ album.product_count }} {{ $t('albumDetail.availableCopies') }}</p>
               </div>
             </div>
           </div>

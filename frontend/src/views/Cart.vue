@@ -119,12 +119,17 @@ const totalPrice = computed(() => {
 })
 
 // 加载购物车数据
+// Load cart items
 const loadCart = async () => {
   isLoading.value = true
   error.value = null
   
   try {
     cartItems.value = await getCart()
+    
+    // Filter out any inactive items that might have slipped through
+    cartItems.value = cartItems.value.filter(item => item.is_active !== false)
+    
     console.log('Cart loaded:', cartItems.value)
   } catch (err) {
     console.error('Failed to load cart:', err)

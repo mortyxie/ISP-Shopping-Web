@@ -1,100 +1,199 @@
 <template>
   <div class="checkout-page">
     <div class="container">
-      <h1 class="page-title">确认订单</h1>
+      <h1 class="page-title">{{ $t('checkout.title') }}</h1>
 
+      <!-- Loading State -->
       <div v-if="isLoading" class="loading-state">
         <div class="loading-spinner"></div>
-        <p>加载中...</p>
+        <p>{{ $t('common.loading') }}</p>
       </div>
 
+      <!-- Error State -->
       <div v-else-if="error" class="error-state">
         <p class="error-message">{{ error }}</p>
-        <button class="btn-primary" @click="router.push('/cart')">返回购物车</button>
+        <button @click="loadCart" class="btn-primary">
+          {{ $t('common.retry') }}
+        </button>
       </div>
 
-      <div v-else class="checkout-content">
-        <!-- 左侧：商品确认 -->
-        <div class="panel items-panel">
-          <h2 class="panel-title">商品信息</h2>
+      <!-- Empty Cart -->
+      <div v-else-if="cartItems.length === 0" class="empty-cart">
+        <div class="empty-icon">🛒</div>
+        <h2>{{ $t('checkout.cartEmpty') }}</h2>
+        <p>{{ $t('checkout.cartEmptyDesc') }}</p>
+        <router-link to="/" class="btn-primary">
+          {{ $t('checkout.continueShopping') }}
+        </router-link>
+      </div>
 
-          <div class="items-header">
-            <div class="col product-col">商品</div>
-            <div class="col price-col">单价</div>
-            <div class="col qty-col">数量</div>
-            <div class="col subtotal-col">小计</div>
+      <!-- Checkout Form -->
+      <div v-else class="checkout-content">
+        <div class="checkout-grid">
+          <!-- Left Column - Shipping Information -->
+          <div class="checkout-form">
+            <!-- Shipping Address -->
+            <div class="form-section">
+              <h2>{{ $t('checkout.shippingAddress') }}</h2>
+              
+              <div class="form-group">
+                <label for="fullName">{{ $t('checkout.fullName') }} *</label>
+                <input
+                  id="fullName"
+                  type="text"
+                  v-model="form.fullName"
+                  :placeholder="$t('checkout.fullNamePlaceholder')"
+                  class="form-input"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="addressLine1">{{ $t('checkout.addressLine1') }} *</label>
+                <input
+                  id="addressLine1"
+                  type="text"
+                  v-model="form.addressLine1"
+                  :placeholder="$t('checkout.addressLine1Placeholder')"
+                  class="form-input"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="addressLine2">{{ $t('checkout.addressLine2') }}</label>
+                <input
+                  id="addressLine2"
+                  type="text"
+                  v-model="form.addressLine2"
+                  :placeholder="$t('checkout.addressLine2Placeholder')"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group half">
+                  <label for="city">{{ $t('checkout.city') }} *</label>
+                  <input
+                    id="city"
+                    type="text"
+                    v-model="form.city"
+                    :placeholder="$t('checkout.cityPlaceholder')"
+                    class="form-input"
+                    required
+                  />
+                </div>
+                <div class="form-group half">
+                  <label for="postalCode">{{ $t('checkout.postalCode') }} *</label>
+                  <input
+                    id="postalCode"
+                    type="text"
+                    v-model="form.postalCode"
+                    :placeholder="$t('checkout.postalCodePlaceholder')"
+                    class="form-input"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="country">{{ $t('checkout.country') }} *</label>
+                <select id="country" v-model="form.country" class="form-input" required>
+                  <option value="">{{ $t('checkout.selectCountry') }}</option>
+                  <option value="China">China</option>
+                  <option value="United States">United States</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Japan">Japan</option>
+                  <option value="Other">{{ $t('checkout.other') }}</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="phone">{{ $t('checkout.phone') }} *</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  v-model="form.phone"
+                  :placeholder="$t('checkout.phonePlaceholder')"
+                  class="form-input"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- Payment Method - Multiple Options -->
+            <div class="form-section">
+              <h2>{{ $t('checkout.paymentMethod') }}</h2>
+              
+              <div class="payment-options">
+                <label class="payment-option">
+                  <input type="radio" value="支付宝" v-model="paymentMethod" />
+                  <span class="payment-label">支付宝</span>
+                </label>
+                <label class="payment-option">
+                  <input type="radio" value="微信" v-model="paymentMethod" />
+                  <span class="payment-label">微信</span>
+                </label>
+                <label class="payment-option">
+                  <input type="radio" value="Mpay" v-model="paymentMethod" />
+                  <span class="payment-label">Mpay</span>
+                </label>
+              </div>
+            </div>
           </div>
 
-          <div v-for="it in items" :key="it.product_id" class="item-row">
-            <div class="col product-col">
-              <div class="product-info">
-                <img :src="it.image || placeholder" class="product-image" :alt="it.name" />
-                <div class="product-meta">
-                  <div class="product-name">{{ it.name }}</div>
-                  <div class="product-sub">{{ it.artist }} · {{ it.condition }}</div>
+          <!-- Right Column - Order Summary -->
+          <div class="order-summary">
+            <h2>{{ $t('checkout.orderSummary') }}</h2>
+            
+            <div class="summary-items">
+              <div v-for="item in cartItems" :key="item.id" class="summary-item">
+                <div class="item-info">
+                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-condition">{{ item.condition }}</span>
+                </div>
+                <div class="item-price">
+                  <span class="item-total">¥{{ (item.price || 0).toFixed(2) }}</span>
                 </div>
               </div>
             </div>
 
-            <div class="col price-col">¥{{ Number(it.price_at_purchase).toFixed(2) }}</div>
-
-            <div class="col qty-col">
-              <span class="qty-fixed">1</span>
+            <div class="summary-totals">
+              <div class="summary-row">
+                <span>{{ $t('checkout.subtotal') }}</span>
+                <span>¥{{ subtotal.toFixed(2) }}</span>
+              </div>
+              <div class="summary-row">
+                <span>{{ $t('checkout.shipping') }}</span>
+                <span>¥{{ shipping.toFixed(2) }}</span>
+              </div>
+              <div class="summary-row total">
+                <span>{{ $t('checkout.total') }}</span>
+                <span class="total-price">¥{{ total.toFixed(2) }}</span>
+              </div>
             </div>
 
-            <div class="col subtotal-col">
-              ¥{{ Number(it.price_at_purchase).toFixed(2) }}
+            <!-- Error/Success Messages -->
+            <div v-if="errorMessage" class="error-message">
+              {{ errorMessage }}
             </div>
-          </div>
-        </div>
-
-        <!-- 右侧：地址/支付/汇总 -->
-        <div class="right-panel">
-          <div class="panel">
-            <h2 class="panel-title">收件信息</h2>
-            <textarea
-              class="address-input"
-              v-model="shippingAddress"
-              placeholder="请输入收件地址（姓名、电话、详细地址）"
-              rows="4"
-            />
-          </div>
-
-          <div class="panel">
-            <h2 class="panel-title">支付方式</h2>
-            <div class="payment-options">
-              <label class="payment-option">
-                <input type="radio" value="支付宝" v-model="paymentMethod" />
-                支付宝
-              </label>
-              <label class="payment-option">
-                <input type="radio" value="微信" v-model="paymentMethod" />
-                微信
-              </label>
-              <label class="payment-option">
-                <input type="radio" value="PayPal" v-model="paymentMethod" />
-                PayPal
-              </label>
-            </div>
-          </div>
-
-          <div class="panel summary-panel">
-            <h2 class="panel-title">订单汇总</h2>
-            <div class="summary-row">
-              <span>商品数量</span>
-              <span>{{ totalQuantity }}</span>
-            </div>
-            <div class="summary-row">
-              <span>合计</span>
-              <span class="total">¥{{ totalAmount.toFixed(2) }}</span>
+            <div v-if="successMessage" class="success-message">
+              {{ successMessage }}
             </div>
 
-            <button class="btn-primary pay-btn" :disabled="submitting" @click="submitOrder">
-              {{ submitting ? '提交中...' : '确认支付（模拟成功）' }}
+            <!-- Place Order Button -->
+            <button 
+              class="place-order-btn"
+              @click="placeOrder"
+              :disabled="isSubmitting || !isFormValid || !paymentMethod"
+            >
+              <span class="btn-icon">💰</span>
+              {{ isSubmitting ? $t('checkout.processing') : $t('checkout.placeOrder') }}
             </button>
-            <button class="btn-secondary" :disabled="submitting" @click="router.push('/cart')">
-              返回购物车
-            </button>
+
+            <p class="terms">
+              {{ $t('checkout.terms') }}
+            </p>
           </div>
         </div>
       </div>
@@ -103,141 +202,178 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+// Add this near the top with other imports
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getCart, clearCart } from '../services/cartService'
 import { isAuthenticated } from '../services/authService'
-import {
-  clearCheckoutDraft,
-  createOrderFromDraft,
-  getCheckoutDraft,
-  setCheckoutDraft
-} from '../services/orderService'
 
 const router = useRouter()
+const { t } = useI18n()
 
+// State
+const cartItems = ref([])
 const isLoading = ref(true)
+const isSubmitting = ref(false)
 const error = ref(null)
-const submitting = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+const paymentMethod = ref('支付宝') // Set default payment method
 
-const items = ref([])
-const shippingAddress = ref('')
-const paymentMethod = ref('')
-
-const placeholder =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjZTJlMmUyIi8+PHRleHQgeD0iMTYiIHk9IjQ1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
-
-const totalQuantity = computed(() => {
-  return items.value.length
+// Form data - shipping info
+const form = ref({
+  fullName: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  postalCode: '',
+  country: '',
+  phone: ''
 })
 
-const totalAmount = computed(() => {
-  return items.value.reduce((sum, it) => sum + Number(it.price_at_purchase || 0), 0)
+// Computed values
+const subtotal = computed(() => {
+  return cartItems.value.reduce((sum, item) => sum + (item.price || 0), 0)
 })
 
-const loadDraftOrCart = async () => {
-  if (!isAuthenticated()) {
-    router.push('/login')
-    return
-  }
+const shipping = computed(() => {
+  return subtotal.value >= 500 ? 0 : 50
+})
 
+const total = computed(() => {
+  return subtotal.value + shipping.value
+})
+
+// Form validation
+const isFormValid = computed(() => {
+  return form.value.fullName && 
+         form.value.addressLine1 && 
+         form.value.city && 
+         form.value.postalCode && 
+         form.value.country && 
+         form.value.phone
+})
+
+// Load checkout items (from either draft or cart)
+const loadCheckoutItems = async () => {
   isLoading.value = true
   error.value = null
-
+  
   try {
-    const draft = getCheckoutDraft()
-    if (draft?.items?.length) {
-      items.value = draft.items.map((it) => ({
-        product_id: it.product_id,
-        price_at_purchase: Number(it.price_at_purchase ?? it.price ?? 0),
-        quantity: 1,
-        name: it.name,
-        artist: it.artist,
-        image: it.image,
-        condition: it.condition
-      }))
-      return
+    // Check if there's a checkout draft (from Buy Now)
+    const draftStr = sessionStorage.getItem('checkout_draft')
+    if (draftStr) {
+      const draft = JSON.parse(draftStr)
+      if (draft?.items?.length) {
+        console.log('Loading from draft:', draft)
+        cartItems.value = draft.items.map((it) => ({
+          id: it.product_id,
+          name: it.name,
+          artist: it.artist,
+          image: it.image,
+          condition: it.condition,
+          price: Number(it.price_at_purchase || 0)
+        }))
+        // Clear the draft after loading
+        sessionStorage.removeItem('checkout_draft')
+        return
+      }
     }
 
+    // If no draft, load from cart
+    console.log('No draft found, loading from cart')
     const cart = await getCart()
     if (!cart.length) {
       error.value = '购物车为空，无法结算'
       return
     }
-
-    const built = {
-      source: 'cart',
-      items: cart.map((it) => ({
-        product_id: it.id,
-        price_at_purchase: it.price,
-        quantity: 1,
-        name: it.name,
-        artist: it.artist,
-        image: it.image,
-        condition: it.condition
-      }))
-    }
-    setCheckoutDraft(built)
-    items.value = built.items
+    cartItems.value = cart
   } catch (e) {
-    console.error(e)
-    error.value = '加载结算信息失败'
+    console.error('Failed to load checkout items:', e)
+    error.value = t('common.loadError')
   } finally {
     isLoading.value = false
   }
 }
 
-const submitOrder = async () => {
-  if (submitting.value) return
-  submitting.value = true
+// Format shipping address
+const getFormattedAddress = () => {
+  const parts = [
+    form.value.fullName,
+    form.value.addressLine1,
+    form.value.addressLine2,
+    `${form.value.city}, ${form.value.postalCode}`,
+    form.value.country,
+    `Phone: ${form.value.phone}`
+  ].filter(Boolean)
+  
+  return parts.join('\n')
+}
 
+// Place order
+const placeOrder = async () => {
+  if (!isFormValid.value || !paymentMethod.value) return
+  
+  isSubmitting.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  
   try {
-    const result = createOrderFromDraft({
-      items: items.value.map((it) => ({
-        product_id: it.product_id,
-        price_at_purchase: it.price_at_purchase,
-        quantity: 1,
-        name: it.name,
-        artist: it.artist,
-        image: it.image,
-        condition: it.condition
-      })),
-      shipping_address: shippingAddress.value,
-      payment_method: paymentMethod.value
+    const token = localStorage.getItem('token')
+    const response = await fetch('/api/orders/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        shipping_address: getFormattedAddress(),
+        payment_method: paymentMethod.value
+      })
     })
-
-    if (!result.success) {
-      alert(result.message || '下单失败')
-      return
-    }
-
-    // 清理草稿
-    clearCheckoutDraft()
-
-    // 尝试清空购物车（如果后端已接入）
-    try {
+    
+    const data = await response.json()
+    
+    if (response.ok) {
       await clearCart()
-    } catch {
-      // ignore
+      successMessage.value = t('checkout.orderSuccess')
+      setTimeout(() => {
+        router.push(`/order/${data.order_id}`)
+      }, 2000)
+    } else {
+      errorMessage.value = data.error || t('checkout.orderFailed')
     }
-
-    alert('支付成功（模拟）')
-    router.push(`/order/${result.order.order_id}`)
+  } catch (err) {
+    console.error('Failed to place order:', err)
+    errorMessage.value = t('checkout.orderFailed')
   } finally {
-    submitting.value = false
+    isSubmitting.value = false
   }
 }
 
+// Update onMounted to use loadCheckoutItems
 onMounted(() => {
-  loadDraftOrCart()
+  if (!isAuthenticated()) {
+    router.push('/login')
+    return
+  }
+  loadCheckoutItems()
 })
 </script>
 
 <style scoped>
+/* Keep your existing styles exactly as they were */
 .checkout-page {
   min-height: calc(100vh - 200px);
   padding: var(--spacing-xxl) 0;
   background: #FDC1A7;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
 }
 
 .page-title {
@@ -248,14 +384,16 @@ onMounted(() => {
   font-weight: bold;
 }
 
+/* Loading State */
 .loading-state {
-  min-height: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 400px;
   background: var(--color-bg);
   border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xxl);
 }
 
 .loading-spinner {
@@ -269,17 +407,16 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
+/* Error State */
 .error-state {
-  min-height: 300px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 400px;
   background: var(--color-bg);
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-xxl);
@@ -292,119 +429,117 @@ onMounted(() => {
   text-align: center;
 }
 
-.checkout-content {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: var(--spacing-xl);
+.btn-primary {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  transition: background-color var(--transition-base);
 }
 
-.panel {
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+}
+
+/* Empty Cart */
+.empty-cart {
+  text-align: center;
+  padding: var(--spacing-xxxl) var(--spacing-lg);
   background: var(--color-bg);
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-xl);
+  border: 2px solid var(--color-primary);
 }
 
-.panel-title {
-  font-size: var(--font-size-xl);
-  color: var(--color-primary);
+.empty-icon {
+  font-size: 5rem;
   margin-bottom: var(--spacing-lg);
-  font-weight: bold;
 }
 
-.items-header,
-.item-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: var(--spacing-md);
-  align-items: center;
-}
-
-.items-header {
-  padding: var(--spacing-md);
-  background: var(--color-bg-light);
-  border-radius: var(--border-radius-md);
-  font-weight: bold;
+.empty-cart h2 {
+  font-size: var(--font-size-xxl);
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-md);
 }
 
-.item-row {
-  padding: var(--spacing-md);
-  border-top: 1px solid var(--color-border);
-}
-
-.product-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.product-image {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--border-radius-md);
-  object-fit: cover;
-  border: 2px solid var(--color-border);
-}
-
-.product-name {
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.product-sub {
-  margin-top: 2px;
-  font-size: var(--font-size-xs);
+.empty-cart p {
+  font-size: var(--font-size-base);
   color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xl);
+  line-height: 1.6;
 }
 
-.qty-input {
-  width: 90px;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  outline: none;
-}
-
-.qty-input:focus {
-  border-color: rgba(220, 38, 38, 0.4);
-}
-
-.qty-fixed {
-  display: inline-flex;
-  min-width: 90px;
-  justify-content: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  background: var(--color-bg-light);
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.right-panel {
-  display: flex;
-  flex-direction: column;
+/* Checkout Grid */
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
   gap: var(--spacing-xl);
 }
 
-.address-input {
+/* Form Sections */
+.checkout-form {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.form-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.form-section h2 {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.form-input {
   width: 100%;
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
-  outline: none;
-  resize: vertical;
   font-size: var(--font-size-base);
+  transition: border-color var(--transition-base);
+  background: var(--color-bg);
+  box-sizing: border-box;
 }
 
-.address-input:focus {
-  border-color: rgba(220, 38, 38, 0.4);
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.form-group.half {
+  flex: 1;
+}
+
+/* Payment Options */
 .payment-options {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-sm);
 }
 
@@ -416,77 +551,207 @@ onMounted(() => {
   border: 2px solid var(--color-border);
   border-radius: var(--border-radius-md);
   cursor: pointer;
-  transition: background-color var(--transition-base), border-color var(--transition-base);
+  transition: all var(--transition-base);
 }
 
 .payment-option:hover {
-  background: var(--color-bg-light);
+  border-color: var(--color-primary);
+  background: var(--color-accent);
+}
+
+.payment-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.payment-label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+/* Order Summary */
+.order-summary {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  height: fit-content;
+  position: sticky;
+  top: 100px;
+}
+
+.order-summary h2 {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.summary-items {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-lg);
+  padding-right: var(--spacing-sm);
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-name {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.item-condition {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  margin-top: 2px;
+}
+
+.item-price {
+  text-align: right;
+}
+
+.item-quantity {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.item-total {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.summary-totals {
+  margin-bottom: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 2px solid var(--color-border);
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  padding: var(--spacing-md) 0;
-  border-top: 1px solid var(--color-border);
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
 }
 
-.summary-row:first-of-type {
-  border-top: none;
-}
-
-.total {
-  color: var(--color-primary);
+.summary-row.total {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 2px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
   font-weight: bold;
+}
+
+.total-price {
+  color: var(--color-primary);
   font-size: var(--font-size-xl);
 }
 
-.btn-primary,
-.btn-secondary {
-  padding: var(--spacing-md) var(--spacing-lg);
+/* Messages */
+.error-message {
+  background-color: var(--color-accent);
+  color: var(--color-primary-dark);
+  padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--border-radius-md);
-  font-size: var(--font-size-base);
-  font-weight: bold;
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
   text-align: center;
+  border: 1px solid var(--color-primary-light);
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  border: 1px solid #c3e6cb;
+}
+
+/* Place Order Button */
+.place-order-btn {
+  width: 100%;
+  padding: var(--spacing-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: bold;
   cursor: pointer;
   transition: all var(--transition-base);
-  border: none;
-  width: 100%;
+  margin-top: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
 }
 
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--color-primary-dark);
+.place-order-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
-.btn-primary:disabled {
+.place-order-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn-secondary {
-  background-color: var(--color-bg-light);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+.btn-icon {
+  font-size: var(--font-size-xl);
+}
+
+.terms {
   margin-top: var(--spacing-md);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  text-align: center;
+  line-height: 1.6;
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background-color: var(--color-border);
-}
-
-.pay-btn {
-  margin-top: var(--spacing-md);
-}
-
+/* Responsive */
 @media (max-width: 992px) {
-  .checkout-content {
+  .checkout-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .order-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .page-title {
+    font-size: var(--font-size-xxl);
   }
 }
 </style>

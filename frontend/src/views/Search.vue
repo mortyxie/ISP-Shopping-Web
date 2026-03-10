@@ -47,45 +47,63 @@
 
       <!-- 搜索结果 -->
       <div v-else class="search-results">
-        <!-- 搜索提示 -->
-        <div v-if="!searchKeyword" class="search-tip">
+        <!-- 搜索提示 - only show when no search and no category selected -->
+        <div v-if="!searched && !isLoading && !showAllAlbums" class="search-tip">
           <div class="tip-icon">💡</div>
           <p>{{ $t('search.tip') }}</p>
         </div>
 
-        <!-- 空状态 -->
-        <div v-else-if="products.length === 0 && searchKeyword" class="empty-state">
+        <!-- Show all albums when "All Categories" is selected without search -->
+        <div v-else-if="showAllAlbums && albums.length > 0" class="albums-grid">
+          <div v-for="album in albums" :key="album.album_id" class="album-card">
+            <router-link :to="`/album/${album.album_id}`" class="album-link">
+              <div class="album-image">
+                <img v-if="album.cover_image_url" :src="album.cover_image_url" :alt="album.title" />
+                <div v-else class="no-image">
+                  {{ album.title?.charAt(0) || '💿' }}
+                </div>
+              </div>
+              <div class="album-info">
+                <div class="album-category">{{ album.genre || t('category.other') }}</div>
+                <div class="album-title">{{ album.title }}</div>
+                <div class="album-artist">{{ album.artist }}</div>
+                <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
+                <div class="album-count">{{ album.product_count || 0 }} {{ $t('search.products') }}</div>
+              </div>
+            </router-link>
+          </div>
+        </div>
+
+        <!-- Empty state for no results -->
+        <div v-else-if="albums.length === 0 && searched" class="empty-state">
           <div class="empty-icon">🔍</div>
           <h2>{{ $t('search.noResults') }}</h2>
           <p>{{ $t('search.tryDifferentKeyword') }}</p>
         </div>
 
-        <!-- 商品列表 -->
-        <div v-else-if="products.length > 0" class="products-grid">
-          <div v-for="product in products" :key="product.id" class="product-card">
-            <router-link :to="`/product/${product.id}`" class="product-link">
-              <div class="product-image">
-                <img v-if="product.image" :src="product.image" :alt="product.name" />
+        <!-- Search results with filters -->
+        <div v-else-if="albums.length > 0" class="albums-grid">
+          <div v-for="album in albums" :key="album.album_id" class="album-card">
+            <router-link :to="`/album/${album.album_id}`" class="album-link">
+              <div class="album-image">
+                <img v-if="album.cover_image_url" :src="album.cover_image_url" :alt="album.title" />
                 <div v-else class="no-image">
-                  {{ product.name.charAt(0) }}
+                  {{ album.title?.charAt(0) || '💿' }}
                 </div>
               </div>
-              <div class="product-info">
-                <div class="product-category">{{ getCategoryLabel(product.category) }}</div>
-                <div class="product-name">{{ product.name }}</div>
-                <div class="product-artist">{{ product.artist }}</div>
-                <div class="product-price">
-                  <span class="price-label">{{ $t('search.price') }}:</span>
-                  <span class="price-value">¥{{ product.price }}</span>
-                </div>
-                <div class="product-condition">{{ getConditionLabel(product.condition) }}</div>
+              <div class="album-info">
+                <div class="album-category">{{ album.genre || t('category.other') }}</div>
+                <div class="album-title">{{ album.title }}</div>
+                <div class="album-artist">{{ album.artist }}</div>
+                <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
+                <div class="album-count">{{ album.product_count || 0 }} {{ $t('search.products') }}</div>
               </div>
             </router-link>
           </div>
         </div>
 
         <!-- 分页 -->
-        <div v-if="products.length > 0 && hasMore" class="pagination">
+        <div v-if="albums.length > 0 && hasMore" class="pagination">
           <button
             @click="loadMore"
             :disabled="isLoadingMore"
@@ -96,9 +114,9 @@
         </div>
 
         <!-- 结果统计 -->
-        <div v-if="products.length > 0" class="results-summary">
+        <div v-if="albums.length > 0" class="results-summary">
           <p>
-            {{ $t('search.foundResults', { count: products.length }) }}
+            {{ showAllAlbums ? $t('search.allAlbums', { count: albums.length }) : $t('search.foundAlbums', { count: albums.length }) }}
             {{ selectedCategory ? ` - ${getCategoryLabel(selectedCategory)}` : '' }}
             {{ searchKeyword ? ` - "${searchKeyword}"` : '' }}
           </p>
@@ -109,10 +127,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getProducts } from '../services/productService'
 
 const route = useRoute()
 const router = useRouter()
@@ -120,74 +137,127 @@ const { t } = useI18n()
 
 const searchKeyword = ref('')
 const selectedCategory = ref(null)
-const products = ref([])
+const albums = ref([])
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const currentPage = ref(1)
 const hasMore = ref(false)
-const totalResults = ref(0)
+const searched = ref(false)
 
-const categories = ['rock', 'pop', 'jazz', 'classical', 'electronic', 'hiphop', 'folk', 'metal', 'punk', 'blues', 'country', 'world']
+// Computed property to check if we're showing all albums
+const showAllAlbums = computed(() => {
+  return !selectedCategory && !searchKeyword.value.trim()
+})
+
+const categories = ['Rock', 'Pop', 'Jazz', 'Classical', 'Electronic', 'Hip Hop', 'Folk', 'Metal', 'Punk', 'Blues', 'Country', 'World']
 
 // 获取分类标签
 const getCategoryLabel = (category) => {
   const categoryMap = {
-    'rock': t('category.rock'),
-    'pop': t('category.pop'),
-    'jazz': t('category.jazz'),
-    'classical': t('category.classical'),
-    'electronic': t('category.electronic'),
-    'hiphop': t('category.hiphop'),
-    'folk': t('category.folk'),
-    'metal': t('category.metal'),
-    'punk': t('category.punk'),
-    'blues': t('category.blues'),
-    'country': t('category.country'),
-    'world': t('category.world'),
-    'null': t('search.allCategories')
+    'Rock': t('category.rock'),
+    'Pop': t('category.pop'),
+    'Jazz': t('category.jazz'),
+    'Classical': t('category.classical'),
+    'Electronic': t('category.electronic'),
+    'Hip Hop': t('category.hiphop'),
+    'Folk': t('category.folk'),
+    'Metal': t('category.metal'),
+    'Punk': t('category.punk'),
+    'Blues': t('category.blues'),
+    'Country': t('category.country'),
+    'World': t('category.world')
   }
   return categoryMap[category] || category
 }
 
-// 获取成色标签
-const getConditionLabel = (condition) => {
-  const conditionMap = {
-    'Mint': '99新',
-    'Near Mint': '85新',
-    'Good': '75新'
-  }
-  return conditionMap[condition] || condition
+// 获取所有专辑
+const getAllAlbums = async (params = {}) => {
+  const queryParams = new URLSearchParams()
+  if (params.limit) queryParams.append('limit', params.limit)
+  if (params.offset) queryParams.append('offset', params.offset)
+  
+  const response = await fetch(`/api/albums?${queryParams.toString()}`)
+  if (!response.ok) throw new Error('Failed to fetch albums')
+  return await response.json()
 }
 
-// 执行搜索
+// 搜索专辑
+const searchAlbums = async (params) => {
+  const queryParams = new URLSearchParams()
+  
+  if (params.search) queryParams.append('search', params.search)
+  if (params.category) queryParams.append('genre', params.category)
+  if (params.limit) queryParams.append('limit', params.limit)
+  if (params.offset) queryParams.append('offset', params.offset)
+  
+  const response = await fetch(`/api/albums/search?${queryParams.toString()}`)
+  if (!response.ok) throw new Error('Search failed')
+  return await response.json()
+}
+
+// 执行搜索或加载所有专辑
 const handleSearch = async () => {
-  if (!searchKeyword.value.trim()) {
+  // If no category and no search keyword, show all albums
+  if (!selectedCategory.value && !searchKeyword.value.trim()) {
+    await loadAllAlbums()
+    searched.value = true
     return
   }
 
   isLoading.value = true
+  searched.value = true
   currentPage.value = 1
 
   try {
-    const results = await getProducts({
-      search: searchKeyword.value,
-      category: selectedCategory.value,
+    const params = {
       limit: 20
-    })
+    }
+    
+    if (searchKeyword.value.trim()) {
+      params.search = searchKeyword.value.trim()
+    }
+    
+    if (selectedCategory.value) {
+      params.category = selectedCategory.value
+    }
 
-    products.value = results
+    const results = await searchAlbums(params)
+
+    albums.value = results
     hasMore.value = results.length >= 20
 
     // 更新URL参数
+    const query = {}
+    if (searchKeyword.value) query.q = searchKeyword.value
+    if (selectedCategory.value) query.category = selectedCategory.value
+    
     router.replace({
       path: '/search',
-      query: {
-        q: searchKeyword.value,
-        category: selectedCategory.value
-      }
+      query
     })
   } catch (error) {
     console.error('Search error:', error)
+    albums.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 加载所有专辑
+const loadAllAlbums = async () => {
+  isLoading.value = true
+  currentPage.value = 1
+  
+  try {
+    const results = await getAllAlbums({ limit: 20 })
+    albums.value = results
+    hasMore.value = results.length >= 20
+    
+    // Clear URL params
+    router.replace({ path: '/search', query: {} })
+  } catch (error) {
+    console.error('Failed to load albums:', error)
+    albums.value = []
   } finally {
     isLoading.value = false
   }
@@ -201,22 +271,39 @@ const filterByCategory = (category) => {
 
 // 加载更多结果
 const loadMore = async () => {
-  if (isLoadingMore.value || !hasMore.value) {
-    return
-  }
+  if (isLoadingMore.value || !hasMore.value) return
 
   isLoadingMore.value = true
   currentPage.value++
 
   try {
-    const moreResults = await getProducts({
-      search: searchKeyword.value,
-      category: selectedCategory.value,
-      limit: 20,
-      offset: (currentPage.value - 1) * 20
-    })
+    let moreResults = []
+    
+    if (showAllAlbums.value) {
+      // Load more all albums
+      moreResults = await getAllAlbums({
+        limit: 20,
+        offset: (currentPage.value - 1) * 20
+      })
+    } else {
+      // Load more search results
+      const params = {
+        limit: 20,
+        offset: (currentPage.value - 1) * 20
+      }
+      
+      if (searchKeyword.value.trim()) {
+        params.search = searchKeyword.value.trim()
+      }
+      
+      if (selectedCategory.value) {
+        params.category = selectedCategory.value
+      }
 
-    products.value = [...products.value, ...moreResults]
+      moreResults = await searchAlbums(params)
+    }
+
+    albums.value = [...albums.value, ...moreResults]
     hasMore.value = moreResults.length >= 20
   } catch (error) {
     console.error('Load more error:', error)
@@ -237,14 +324,17 @@ onMounted(async () => {
     selectedCategory.value = query.category
   }
 
-  // 如果有搜索参数，执行搜索
+  // 如果有搜索参数，执行搜索；否则显示所有专辑
   if (query.q || query.category) {
     await handleSearch()
+  } else {
+    await loadAllAlbums()
   }
 })
 </script>
 
 <style scoped>
+/* Keep all your existing styles */
 .search-page {
   min-height: calc(100vh - 200px);
   padding: var(--spacing-xl) 0;
@@ -284,6 +374,7 @@ onMounted(async () => {
   font-size: var(--font-size-base);
   outline: none;
   transition: border-color var(--transition-base);
+  background: white;
 }
 
 .search-input:focus {
@@ -324,6 +415,7 @@ onMounted(async () => {
   font-size: var(--font-size-sm);
   cursor: pointer;
   transition: all var(--transition-base);
+  color: var(--color-text-primary);
 }
 
 .category-btn:hover {
@@ -353,6 +445,7 @@ onMounted(async () => {
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-md);
 }
 
 @keyframes spin {
@@ -371,6 +464,11 @@ onMounted(async () => {
 .tip-icon {
   font-size: var(--font-size-xxxl);
   margin-bottom: var(--spacing-md);
+}
+
+.search-tip p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
 }
 
 /* 空状态 */
@@ -394,15 +492,15 @@ onMounted(async () => {
   color: var(--color-text-secondary);
 }
 
-/* 商品网格 */
-.products-grid {
+/* 专辑网格 */
+.albums-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--spacing-lg);
   margin-bottom: var(--spacing-xxl);
 }
 
-.product-card {
+.album-card {
   background: var(--color-bg);
   border-radius: var(--border-radius-lg);
   overflow: hidden;
@@ -410,19 +508,19 @@ onMounted(async () => {
   border: 2px solid var(--color-border);
 }
 
-.product-card:hover {
+.album-card:hover {
   border-color: var(--color-primary);
   transform: translateY(-4px);
   box-shadow: var(--shadow-xl);
 }
 
-.product-link {
+.album-link {
   display: block;
   text-decoration: none;
   color: inherit;
 }
 
-.product-image {
+.album-image {
   aspect-ratio: 1;
   overflow: hidden;
   background: var(--color-bg-light);
@@ -431,7 +529,7 @@ onMounted(async () => {
   justify-content: center;
 }
 
-.product-image img {
+.album-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -443,17 +541,18 @@ onMounted(async () => {
   font-weight: bold;
 }
 
-.product-info {
+.album-info {
   padding: var(--spacing-lg);
 }
 
-.product-category {
+.album-category {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xs);
+  text-transform: capitalize;
 }
 
-.product-name {
+.album-title {
   font-size: var(--font-size-lg);
   color: var(--color-text-primary);
   font-weight: 600;
@@ -463,33 +562,25 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.product-artist {
+.album-artist {
   font-size: var(--font-size-base);
   color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
 }
 
-.product-price {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.price-label {
+.album-year {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
 }
 
-.price-value {
-  font-size: var(--font-size-lg);
+.album-count {
+  font-size: var(--font-size-sm);
   color: var(--color-primary);
-  font-weight: bold;
-}
-
-.product-condition {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-weight: 500;
   margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
 }
 
 /* 分页 */
@@ -529,22 +620,27 @@ onMounted(async () => {
   border-radius: var(--border-radius-md);
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+  border: 1px solid var(--color-border);
 }
 
 /* 响应式设计 */
 @media (max-width: 992px) {
-  .products-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  .albums-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 }
 
 @media (max-width: 767.98px) {
-  .products-grid {
+  .albums-grid {
     grid-template-columns: 1fr;
   }
 
   .search-bar {
     flex-direction: column;
+  }
+
+  .search-button {
+    width: 100%;
   }
 
   .category-filter {

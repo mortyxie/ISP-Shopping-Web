@@ -6,12 +6,27 @@
         <p class="page-subtitle">{{ $t('category.subtitle') }}</p>
       </div>
 
-      <div class="categories-grid">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>{{ $t('common.loading') }}</p>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="error-state">
+        <p class="error-message">{{ error }}</p>
+        <button @click="loadCategories" class="btn-primary">
+          {{ $t('common.retry') }}
+        </button>
+      </div>
+
+      <!-- Categories Grid -->
+      <div v-else class="categories-grid">
         <div
           v-for="category in categories"
           :key="category.id"
           class="category-card"
-          @click="goToCategory(category.id)"
+          @click="goToCategory(category.name)"
         >
           <div class="category-icon">
             <span class="icon-emoji">{{ category.icon }}</span>
@@ -19,7 +34,7 @@
           <h3 class="category-name">{{ category.name }}</h3>
           <p class="category-description">{{ category.description }}</p>
           <div class="category-footer">
-            <span class="category-count">{{ category.count }} {{ $t('category.items') }}</span>
+            <span class="category-count">{{ category.count }} {{ $t('category.albums') }}</span>
             <span class="category-arrow">→</span>
           </div>
         </div>
@@ -29,108 +44,145 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const { t } = useI18n()
 
-// 分类数据
-const categories = ref([
-  {
-    id: 1,
-    name: t('category.rock'),
-    icon: '🎸',
-    description: t('category.rockDesc'),
-    count: 156
-  },
-  {
-    id: 2,
-    name: t('category.pop'),
-    icon: '🎤',
-    description: t('category.popDesc'),
-    count: 203
-  },
-  {
-    id: 3,
-    name: t('category.jazz'),
-    icon: '🎷',
-    description: t('category.jazzDesc'),
-    count: 89
-  },
-  {
-    id: 4,
-    name: t('category.classical'),
-    icon: '🎻',
-    description: t('category.classicalDesc'),
-    count: 124
-  },
-  {
-    id: 5,
-    name: t('category.electronic'),
-    icon: '🎹',
-    description: t('category.electronicDesc'),
-    count: 98
-  },
-  {
-    id: 6,
-    name: t('category.hiphop'),
-    icon: '🎧',
-    description: t('category.hiphopDesc'),
-    count: 67
-  },
-  {
-    id: 7,
-    name: t('category.folk'),
-    icon: '🪕',
-    description: t('category.folkDesc'),
-    count: 45
-  },
-  {
-    id: 8,
-    name: t('category.metal'),
-    icon: '🤘',
-    description: t('category.metalDesc'),
-    count: 78
-  },
-  {
-    id: 9,
-    name: t('category.punk'),
-    icon: '🎸',
-    description: t('category.punkDesc'),
-    count: 56
-  },
-  {
-    id: 10,
-    name: t('category.blues'),
-    icon: '🎵',
-    description: t('category.bluesDesc'),
-    count: 34
-  },
-  {
-    id: 11,
-    name: t('category.country'),
-    icon: '🎪',
-    description: t('category.countryDesc'),
-    count: 42
-  },
-  {
-    id: 12,
-    name: t('category.world'),
-    icon: '🌍',
-    description: t('category.worldDesc'),
-    count: 28
-  }
-])
+const categories = ref([])
+const isLoading = ref(true)
+const error = ref(null)
 
-// 跳转到分类
-const goToCategory = (categoryId) => {
+// Load categories with real album counts from database
+const loadCategories = async () => {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    // Fetch all albums to count by genre
+    const response = await fetch('/api/albums')
+    const albums = await response.json()
+    
+    // Count albums by genre
+    const genreCounts = {}
+    albums.forEach(album => {
+      const genre = album.genre
+      if (genre) {
+        genreCounts[genre] = (genreCounts[genre] || 0) + 1
+      }
+    })
+    
+    console.log('Genre counts:', genreCounts)
+    
+    // Map to categories with real counts
+    categories.value = [
+      {
+        id: 1,
+        name: t('category.rock'),
+        icon: '🎸',
+        description: t('category.rockDesc'),
+        count: genreCounts['Rock'] || 0
+      },
+      {
+        id: 2,
+        name: t('category.pop'),
+        icon: '🎤',
+        description: t('category.popDesc'),
+        count: genreCounts['Pop'] || 0
+      },
+      {
+        id: 3,
+        name: t('category.jazz'),
+        icon: '🎷',
+        description: t('category.jazzDesc'),
+        count: genreCounts['Jazz'] || 0
+      },
+      {
+        id: 4,
+        name: t('category.classical'),
+        icon: '🎻',
+        description: t('category.classicalDesc'),
+        count: genreCounts['Classical'] || 0
+      },
+      {
+        id: 5,
+        name: t('category.electronic'),
+        icon: '🎹',
+        description: t('category.electronicDesc'),
+        count: genreCounts['Electronic'] || 0
+      },
+      {
+        id: 6,
+        name: t('category.hiphop'),
+        icon: '🎧',
+        description: t('category.hiphopDesc'),
+        count: genreCounts['Hip Hop'] || 0
+      },
+      {
+        id: 7,
+        name: t('category.folk'),
+        icon: '🪕',
+        description: t('category.folkDesc'),
+        count: genreCounts['Folk'] || 0
+      },
+      {
+        id: 8,
+        name: t('category.metal'),
+        icon: '🤘',
+        description: t('category.metalDesc'),
+        count: genreCounts['Metal'] || 0
+      },
+      {
+        id: 9,
+        name: t('category.punk'),
+        icon: '🎸',
+        description: t('category.punkDesc'),
+        count: genreCounts['Punk'] || 0
+      },
+      {
+        id: 10,
+        name: t('category.blues'),
+        icon: '🎵',
+        description: t('category.bluesDesc'),
+        count: genreCounts['Blues'] || 0
+      },
+      {
+        id: 11,
+        name: t('category.country'),
+        icon: '🎪',
+        description: t('category.countryDesc'),
+        count: genreCounts['Country'] || 0
+      },
+      {
+        id: 12,
+        name: t('category.world'),
+        icon: '🌍',
+        description: t('category.worldDesc'),
+        count: genreCounts['World'] || 0
+      }
+    ].filter(cat => cat.count > 0) // Only show categories that have albums
+    
+  } catch (err) {
+    console.error('Failed to load categories:', err)
+    error.value = t('common.loadError')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 跳转到分类搜索页（搜索专辑）
+const goToCategory = (categoryName) => {
   router.push({
     path: '/search',
-    query: { category: categoryId }
+    query: { category: categoryName }
   })
 }
+
+onMounted(() => {
+  loadCategories()
+})
 </script>
 
 <style scoped>
@@ -138,6 +190,12 @@ const goToCategory = (categoryId) => {
   min-height: calc(100vh - 200px);
   padding: var(--spacing-xxl) 0;
   background: #FDC1A7;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
 }
 
 .page-header {
@@ -155,6 +213,66 @@ const goToCategory = (categoryId) => {
 .page-subtitle {
   font-size: var(--font-size-lg);
   color: var(--color-text-secondary);
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xxl);
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-md);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xxl);
+}
+
+.error-message {
+  color: var(--color-error);
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+}
+
+.btn-primary {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  transition: background-color var(--transition-base);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
 }
 
 .categories-grid {
@@ -250,6 +368,7 @@ const goToCategory = (categoryId) => {
 .category-count {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
 .category-arrow {

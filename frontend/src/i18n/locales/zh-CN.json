@@ -30,11 +30,44 @@
     "noMessages": "暂无留言",
     "anonymous": "匿名用户"
   },
+  "profile": {
+    "title": "个人中心",
+    "notLoggedIn": "未登录",
+    "pleaseLogin": "请登录后查看个人资料",
+    "userId": "用户ID",
+    "registeredDate": "注册日期",
+    "orderCount": "订单总数",
+    "quickActions": "快捷操作",
+    "myOrders": "我的订单",
+    "viewOrders": "查看订单历史",
+    "myWishlist": "我的收藏",
+    "viewWishlist": "查看收藏的商品",
+    "viewCart": "查看购物车",
+    "logout": "退出登录",
+    "logoutDesc": "退出当前账号",
+    "logoutConfirm": "确定要退出登录吗？",
+    "forgotPasswordTip": "需要修改密码？",
+    "customer": "普通用户",
+    "seller": "商家",
+    "admin": "管理员",
+    "fetchError": "加载个人资料失败",
+    "sellerActions": "商家操作",
+    "sellerDashboard": "商家后台",
+    "manageStore": "管理您的店铺",
+    "sellerOrders": "订单管理",
+    "viewSellerOrders": "查看客户订单",
+    "myProducts": "商品管理",
+    "manageProducts": "管理您的商品"
+  },
   "common": {
     "loading": "加载中...",
     "retry": "重试",
     "loadError": "加载数据失败",
-    "goBack": "返回"
+    "goBack": "返回",
+    "email": "邮箱",
+    "cart": "购物车",
+    "forgotPassword": "重置密码",
+    "login": "登录"
   },
   "login": {
     "title": "登录",
@@ -80,6 +113,22 @@
       "registrationFailed": "注册失败，请重试"
     }
   },
+  "forgotPassword": {
+    "title": "忘记密码",
+    "subtitle": "请输入您的邮箱地址，我们将发送重置密码的链接",
+    "email": "邮箱地址",
+    "emailPlaceholder": "请输入您注册时使用的邮箱",
+    "sendButton": "发送重置链接",
+    "sending": "发送中...",
+    "backToLogin": "返回登录",
+    "success": "密码重置链接已发送到您的邮箱",
+    "error": {
+      "emailRequired": "请输入邮箱地址",
+      "emailInvalid": "请输入有效的邮箱地址",
+      "general": "发送失败，请重试",
+      "network": "网络错误，请稍后重试"
+    }
+  },
   "cart": {
     "title": "购物车",
     "empty": "购物车是空的",
@@ -99,7 +148,8 @@
     "confirmRemove": "确定要删除这个商品吗？"
   },
   "productDetail": {
-    "selectCondition": "选择成色",
+    "condition": "成色",
+    "price": "价格",
     "availableItems": "可选商品",
     "noItems": "该成色下暂无商品",
     "inStock": "有货",
@@ -107,7 +157,8 @@
     "addToCart": "加入购物车",
     "description": "商品描述",
     "addedToCart": "已加入购物车",
-    "addToCartError": "加入购物车失败"
+    "addToCartError": "加入购物车失败",
+    "buyNow": "立即购买"
   },
   "albumDetail": {
     "tracklist": "曲目列表",
@@ -116,6 +167,7 @@
     "noItemsInCondition": "该成色下暂无唱片"
   },
   "category": {
+    "albums": "张专辑",
     "title": "商品分类",
     "subtitle": "浏览所有音乐分类，找到你喜欢的唱片",
     "items": "件商品",
@@ -143,6 +195,101 @@
     "countryDesc": "传统乡村、现代乡村、乡村流行等",
     "world": "世界音乐",
     "worldDesc": "世界各地的传统与现代音乐"
+  },
+  "search": {
+    "title": "搜索专辑",
+    "placeholder": "按专辑名称或艺术家搜索...",
+    "button": "搜索",
+    "searching": "搜索中...",
+    "allCategories": "全部分类",
+    "tip": "输入关键词搜索专辑",
+    "noResults": "未找到专辑",
+    "tryDifferentKeyword": "尝试其他关键词或浏览分类",
+    "loadMore": "加载更多",
+    "loading": "加载中...",
+    "foundAlbums": "找到 {count} 张专辑",
+    "products": "件商品"
+  },
+  "orders": {
+    "title": "我的订单",
+    "noOrders": "暂无订单",
+    "noOrdersDesc": "您还没有下过任何订单。开始购物，您的订单将显示在这里！",
+    "startShopping": "开始购物",
+    "orderNumber": "订单号",
+    "total": "总计",
+    "viewDetails": "查看详情",
+    "payNow": "立即支付",
+    "subtotal": "商品合计",
+    "shipping": "运费",
+    "status": {
+      "pending": "待付款",
+      "paid": "已付款",
+      "shipped": "已发货",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "payFeature": "支付功能即将推出！"
+  },
+  "orderDetail": {
+    "title": "订单详情",
+    "backToList": "返回订单列表",
+    "status": "订单状态",
+    "orderDate": "下单时间",
+    "shippingInfo": "配送信息",
+    "address": "收货地址",
+    "paymentMethod": "支付方式",
+    "transactionId": "交易单号",
+    "paidAt": "支付时间",
+    "notSpecified": "未指定",
+    "orderItems": "商品清单",
+    "subtotal": "商品合计",
+    "shipping": "运费",
+    "total": "订单总计",
+    "payNow": "立即支付",
+    "cancelOrder": "取消订单",
+    "confirmReceipt": "确认收货",
+    "confirmCancel": "确定要取消这个订单吗？",
+    "confirmReceiptMsg": "您确认已经收到商品了吗？",
+    "cancelFailed": "取消订单失败",
+    "confirmFailed": "确认收货失败",
+    "payFeature": "支付功能即将推出！"
+  },
+  "checkout": {
+    "title": "结算",
+    "cartEmpty": "购物车是空的",
+    "cartEmptyDesc": "请在结算前添加商品到购物车",
+    "continueShopping": "继续购物",
+    "shippingAddress": "收货地址",
+    "fullName": "收件人姓名",
+    "fullNamePlaceholder": "请输入收件人姓名",
+    "addressLine1": "地址第一行",
+    "addressLine1Placeholder": "街道地址",
+    "addressLine2": "地址第二行（可选）",
+    "addressLine2Placeholder": "公寓、套房、单元等",
+    "city": "城市",
+    "cityPlaceholder": "请输入城市",
+    "postalCode": "邮政编码",
+    "postalCodePlaceholder": "请输入邮政编码",
+    "country": "国家",
+    "selectCountry": "请选择国家",
+    "other": "其他",
+    "phone": "联系电话",
+    "phonePlaceholder": "请输入联系电话",
+    "paymentMethod": "支付方式",
+    "creditCard": "信用卡",
+    "bankTransfer": "银行转账",
+    "cardNumber": "卡号",
+    "cardNumberPlaceholder": "1234 5678 9012 3456",
+    "expiry": "有效期",
+    "orderSummary": "订单摘要",
+    "subtotal": "商品合计",
+    "shipping": "运费",
+    "total": "订单总计",
+    "placeOrder": "提交订单",
+    "processing": "处理中...",
+    "terms": "提交订单即表示您同意我们的服务条款和隐私政策",
+    "orderSuccess": "订单提交成功！正在跳转到订单详情...",
+    "orderFailed": "订单提交失败，请重试"
   },
   "forum": {
     "placeholder": "分享你的想法...（最多144字）",
@@ -208,19 +355,5 @@
     "manageCartDesc": "管理购物车商品",
     "viewProfileDesc": "查看和管理个人信息",
     "fetchError": "获取商家数据失败"
-  },
-  "search": {
-    "title": "商品搜索",
-    "placeholder": "搜索唱片、艺人、音乐风格...",
-    "button": "搜索",
-    "allCategories": "全部分类",
-    "searching": "正在搜索...",
-    "loading": "加载中...",
-    "loadMore": "加载更多",
-    "tip": "输入关键词或选择分类开始搜索",
-    "noResults": "未找到相关商品",
-    "tryDifferentKeyword": "试试其他关键词或分类",
-    "foundResults": "找到 {count} 个商品",
-    "price": "价格"
   }
 }
