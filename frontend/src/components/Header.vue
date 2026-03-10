@@ -58,7 +58,7 @@
 
         <!-- 我的订单 - Show for customers only -->
         <div v-if="!isSeller" class="action-item" @click="goToOrders">
-          <span class="action-icon">📋</span>
+          <span class="action-icon">🧾</span>
           <span class="action-text">{{ $t('header.orders') }}</span>
         </div>
 

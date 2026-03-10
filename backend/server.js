@@ -1180,14 +1180,14 @@ app.post('/api/forum/messages', authenticateToken, (req, res) => {
 // Register new user - always customer role
 app.post('/api/users/register', async (req, res) => {
   const { username, email, password } = req.body;
-  
+
   if (!username || !email || !password) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Username, email and password are required' 
+    return res.status(400).json({
+      success: false,
+      message: 'Username, email and password are required'
     });
   }
-  
+
   // Check if user already exists
   db.get(
     'SELECT * FROM Users WHERE username = ? OR email = ?',
@@ -1196,17 +1196,17 @@ app.post('/api/users/register', async (req, res) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
-      
+
       if (existingUser) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Username or email already exists' 
+        return res.status(400).json({
+          success: false,
+          message: 'Username or email already exists'
         });
       }
-      
+
       try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         // Always insert as 'customer' role
         db.run(
           'INSERT INTO Users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
@@ -1215,7 +1215,7 @@ app.post('/api/users/register', async (req, res) => {
             if (err) {
               return res.status(500).json({ error: err.message });
             }
-            
+
             res.status(201).json({
               success: true,
               message: 'User registered successfully',
@@ -1226,6 +1226,135 @@ app.post('/api/users/register', async (req, res) => {
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
+    }
+  );
+});
+
+// Get user profile (protected)
+app.get('/api/user/profile', authenticateToken, (req, res) => {
+  db.get(
+    `SELECT user_id, username, email, avatar_url, role, created_at
+     FROM Users WHERE user_id = ?`,
+    [req.user.userId],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Get user's order count
+      db.get(
+        'SELECT COUNT(*) as order_count FROM Orders WHERE user_id = ?',
+        [req.user.userId],
+        (err, orderStats) => {
+          res.json({
+            user_id: user.user_id,
+            username: user.username,
+            email: user.email,
+            avatar_url: user.avatar_url,
+            role: user.role,
+            created_at: user.created_at,
+            orderCount: orderStats?.order_count || 0
+          });
+        }
+      );
+    }
+  );
+});
+
+// ==================== SELLER API ====================
+
+// Get seller dashboard data (protected - requires seller role)
+app.get('/api/seller/dashboard', authenticateToken, (req, res) => {
+  // Check if user is seller
+  db.get(
+    'SELECT role FROM Users WHERE user_id = ?',
+    [req.user.userId],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (!user || user.role !== 'seller') {
+        return res.status(403).json({ error: 'Access denied. Seller role required.' });
+      }
+
+      // Get seller statistics
+      db.get(
+        `SELECT
+            (SELECT COUNT(*) FROM Products WHERE is_active = 1) as total_products,
+            (SELECT COUNT(DISTINCT album_id) FROM Products WHERE is_active = 1) as total_albums,
+            (SELECT COUNT(*) FROM Orders WHERE status = 'pending') as pending_orders,
+            (SELECT COUNT(*) FROM Orders WHERE status = 'paid') as paid_orders,
+            (SELECT COUNT(*) FROM Orders WHERE status = 'completed') as completed_orders`,
+        [req.user.userId],
+        (err, stats) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+
+          // Get recent orders
+          db.all(
+            `SELECT
+                o.order_id,
+                o.total_amount,
+                o.status,
+                o.created_at,
+                o.paid_at,
+                u.username as customer_name,
+                COUNT(oi.order_item_id) as item_count
+            FROM Orders o
+            JOIN Users u ON o.user_id = u.user_id
+            LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+            WHERE o.user_id = ?
+            GROUP BY o.order_id
+            ORDER BY o.created_at DESC
+            LIMIT 10`,
+            [req.user.userId],
+            (err, recentOrders) => {
+              if (err) {
+                return res.status(500).json({ error: err.message });
+              }
+
+              // Get low stock products
+              db.all(
+                `SELECT
+                    p.product_id,
+                    a.title AS album_title,
+                    a.artist,
+                    a.cover_image_url,
+                    p.condition,
+                    p.price,
+                    p.is_active
+                FROM Products p
+                JOIN Albums a ON p.album_id = a.album_id
+                WHERE p.is_active = 1
+                ORDER BY p.created_at ASC
+                LIMIT 10`,
+                [],
+                (err, lowStock) => {
+                  if (err) {
+                    return res.status(500).json({ error: err.message });
+                  }
+
+                  res.json({
+                    stats: stats || {},
+                    recentOrders: recentOrders || [],
+                    lowStock: lowStock || [],
+                    sellerInfo: {
+                      userId: req.user.userId,
+                      username: user.username,
+                      email: user.email
+                    }
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
     }
   );
 });
