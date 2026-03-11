@@ -3,33 +3,33 @@
     <div class="container">
       <div class="reset-password-container">
         <div class="reset-password-card">
-          <h1 class="page-title">重设密码</h1>
-          <p class="subtitle">请输入您的新密码</p>
+          <h1 class="page-title">{{ $t('resetPassword.title') }}</h1>
+          <p class="subtitle">{{ $t('resetPassword.subtitle') }}</p>
 
           <form @submit.prevent="handleResetPassword" class="reset-password-form">
             <!-- 邮箱显示（只读） -->
             <div class="form-group">
-              <label for="email">邮箱地址</label>
+              <label for="email">{{ $t('resetPassword.email') }}</label>
               <input
                 id="email"
                 type="email"
                 v-model="form.email"
-                placeholder="请输入您注册时使用的邮箱"
+                :placeholder="$t('resetPassword.emailPlaceholder')"
                 class="form-input"
                 autocomplete="email"
                 readonly
               />
-              <p class="hint">邮箱不可修改，如有问题请重新申请重置</p>
+              <p class="hint">{{ $t('resetPassword.emailReadonly') }}</p>
             </div>
 
             <!-- 新密码 -->
             <div class="form-group">
-              <label for="newPassword">新密码</label>
+              <label for="newPassword">{{ $t('resetPassword.newPassword') }}</label>
               <input
                 id="newPassword"
                 type="password"
                 v-model="form.newPassword"
-                placeholder="请输入新密码（至少6个字符）"
+                :placeholder="$t('resetPassword.newPasswordPlaceholder')"
                 class="form-input"
                 autocomplete="new-password"
                 required
@@ -39,12 +39,12 @@
 
             <!-- 确认新密码 -->
             <div class="form-group">
-              <label for="confirmPassword">确认新密码</label>
+              <label for="confirmPassword">{{ $t('resetPassword.confirmPassword') }}</label>
               <input
                 id="confirmPassword"
                 type="password"
                 v-model="form.confirmPassword"
-                placeholder="请再次输入新密码"
+                :placeholder="$t('resetPassword.confirmPasswordPlaceholder')"
                 class="form-input"
                 autocomplete="new-password"
                 required
@@ -68,24 +68,24 @@
               class="submit-button"
               :disabled="isLoading || !isFormValid"
             >
-              {{ isLoading ? '重置中...' : '确认修改' }}
+              {{ isLoading ? $t('resetPassword.submitting') : $t('resetPassword.submitButton') }}
             </button>
           </form>
 
           <!-- 密码要求提示 -->
           <div class="password-requirements">
-            <p class="requirements-title">密码要求：</p>
+            <p class="requirements-title">{{ $t('resetPassword.requirements.title') }}</p>
             <ul class="requirements-list">
-              <li>至少6个字符</li>
-              <li>建议包含字母和数字</li>
-              <li>建议使用特殊字符增强安全性</li>
+              <li>{{ $t('resetPassword.requirements.minLength') }}</li>
+              <li>{{ $t('resetPassword.requirements.lettersNumbers') }}</li>
+              <li>{{ $t('resetPassword.requirements.specialChars') }}</li>
             </ul>
           </div>
 
           <!-- 返回登录 -->
           <div class="back-to-login">
             <router-link to="/login" class="link">
-              ← 返回登录
+              ← {{ $t('resetPassword.backToLogin') }}
             </router-link>
           </div>
         </div>
@@ -95,12 +95,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 // 如果URL中有email参数，自动填充
 const initialEmail = route.query.email || ''
@@ -131,54 +132,62 @@ const handleResetPassword = async () => {
 
   // 验证输入
   if (!form.value.email.trim()) {
-    errorMessage.value = '请输入邮箱地址'
+    errorMessage.value = t('resetPassword.error.emailRequired')
     return
   }
 
   // 简单邮箱格式验证
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(form.value.email)) {
-    errorMessage.value = '请输入有效的邮箱地址'
+    errorMessage.value = t('resetPassword.error.emailInvalid')
     return
   }
 
   if (!form.value.newPassword) {
-    errorMessage.value = '请输入新密码'
+    errorMessage.value = t('resetPassword.error.passwordRequired')
     return
   }
 
   if (form.value.newPassword.length < 6) {
-    errorMessage.value = '密码至少需要6个字符'
+    errorMessage.value = t('resetPassword.error.passwordTooShort')
     return
   }
 
   if (form.value.newPassword !== form.value.confirmPassword) {
-    errorMessage.value = '两次输入的密码不一致'
+    errorMessage.value = t('resetPassword.error.passwordMismatch')
     return
   }
 
   isLoading.value = true
 
   try {
-    // 调用后端重置密码API
-    const response = await axios.post('/api/auth/reset-password', {
-      email: form.value.email,
-      newPassword: form.value.newPassword
+    // Call the actual password reset API
+    const response = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: form.value.email,
+        newPassword: form.value.newPassword
+      })
     })
 
-    if (response.data.success) {
-      successMessage.value = response.data.message || '密码重置成功！'
+    const data = await response.json()
+
+    if (response.ok) {
+      successMessage.value = data.message || t('resetPassword.success')
 
       // 3秒后跳转到登录页
       setTimeout(() => {
         router.push('/login')
       }, 3000)
     } else {
-      errorMessage.value = response.data.message || '重置失败，请重试'
+      errorMessage.value = data.error || t('resetPassword.error.resetFailed')
     }
   } catch (error) {
     console.error('Reset password error:', error)
-    errorMessage.value = '网络错误，请稍后重试'
+    errorMessage.value = t('resetPassword.error.networkError')
   } finally {
     isLoading.value = false
   }
@@ -186,6 +195,7 @@ const handleResetPassword = async () => {
 </script>
 
 <style scoped>
+/* Keep your existing styles */
 .reset-password-page {
   min-height: calc(100vh - 200px);
   display: flex;

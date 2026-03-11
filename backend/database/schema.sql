@@ -25,7 +25,7 @@ CREATE TABLE Albums (
     tracklist TEXT,
     release_year INTEGER,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CHECK (release_year >= 1900 AND release_year <= 2025)  -- Fixed this line
+    CHECK (release_year >= 1800 AND release_year <= 3000)  -- Fixed this line
 );
 
 -- Table: Products (Child Table - SKU)

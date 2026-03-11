@@ -129,6 +129,36 @@
       "network": "Network error. Please try again later."
     }
   },
+  "resetPassword": {
+    "title": "Reset Password",
+    "subtitle": "Enter your new password below",
+    "email": "Email Address",
+    "emailPlaceholder": "Enter your email address",
+    "emailReadonly": "Email cannot be modified",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter new password (minimum 6 characters)",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Confirm new password",
+    "submitButton": "Reset Password",
+    "submitting": "Resetting...",
+    "backToLogin": "Back to Login",
+    "success": "Password reset successful! Redirecting to login...",
+    "requirements": {
+      "title": "Password Requirements:",
+      "minLength": "At least 6 characters",
+      "lettersNumbers": "Use both letters and numbers",
+      "specialChars": "Use special characters for better security"
+    },
+    "error": {
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email address",
+      "passwordRequired": "Password is required",
+      "passwordTooShort": "Password must be at least 6 characters",
+      "passwordMismatch": "Passwords do not match",
+      "resetFailed": "Password reset failed",
+      "networkError": "Network error. Please try again."
+    }
+  },
   "cart": {
     "title": "Shopping Cart",
     "empty": "Your cart is empty",

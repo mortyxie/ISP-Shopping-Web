@@ -131,6 +131,36 @@
       "network": "網絡錯誤，請稍後重試"
     }
   },
+  "resetPassword": {
+    "title": "重設密碼",
+    "subtitle": "請輸入您的新密碼",
+    "email": "郵箱地址",
+    "emailPlaceholder": "請輸入您的郵箱地址",
+    "emailReadonly": "郵箱不可修改",
+    "newPassword": "新密碼",
+    "newPasswordPlaceholder": "請輸入新密碼（至少6個字符）",
+    "confirmPassword": "確認密碼",
+    "confirmPasswordPlaceholder": "請再次輸入新密碼",
+    "submitButton": "確認修改",
+    "submitting": "重置中...",
+    "backToLogin": "返回登錄",
+    "success": "密碼重置成功！正在跳轉到登錄頁面...",
+    "requirements": {
+      "title": "密碼要求：",
+      "minLength": "至少6個字符",
+      "lettersNumbers": "建議包含字母和數字",
+      "specialChars": "建議使用特殊字符增強安全性"
+    },
+    "error": {
+      "emailRequired": "請輸入郵箱地址",
+      "emailInvalid": "請輸入有效的郵箱地址",
+      "passwordRequired": "請輸入新密碼",
+      "passwordTooShort": "密碼至少需要6個字符",
+      "passwordMismatch": "兩次輸入的密碼不一致",
+      "resetFailed": "重置失敗，請重試",
+      "networkError": "網絡錯誤，請稍後重試"
+    }
+  },
   "cart": {
     "title": "購物車",
     "empty": "購物車是空的",

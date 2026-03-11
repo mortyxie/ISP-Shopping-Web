@@ -105,42 +105,53 @@ app.post('/api/users/login', (req, res) => {
     );
 });
 
-// Forgot password - send reset email
-app.post('/api/auth/forgot-password', (req, res) => {
-  const { email } = req.body;
+// Reset password
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { email, newPassword } = req.body;
   
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: 'Email and new password are required' });
+  }
+  
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
   
   // Check if user exists
-  db.get('SELECT * FROM Users WHERE email = ?', [email], (err, user) => {
+  db.get('SELECT * FROM Users WHERE email = ?', [email], async (err, user) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Database error' });
     }
     
     if (!user) {
-      // For security, still return success even if email doesn't exist
-      // This prevents email enumeration
-      return res.json({ 
-        success: true, 
-        message: 'If your email exists in our system, you will receive a password reset link.' 
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
     
-    // In a real application, you would:
-    // 1. Generate a reset token
-    // 2. Save it to database with expiration
-    // 3. Send email with reset link
-    
-    // For now, simulate success
-    console.log(`Password reset requested for: ${email}`);
-    
-    res.json({ 
-      success: true, 
-      message: 'Password reset link has been sent to your email.' 
-    });
+    try {
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      
+      // Update password
+      db.run(
+        'UPDATE Users SET password_hash = ? WHERE email = ?',
+        [hashedPassword, email],
+        function(err) {
+          if (err) {
+            console.error('Error updating password:', err);
+            return res.status(500).json({ error: 'Failed to reset password' });
+          }
+          
+          res.json({ 
+            success: true, 
+            message: 'Password reset successful' 
+          });
+        }
+      );
+    } catch (error) {
+      console.error('Error hashing password:', error);
+      res.status(500).json({ error: 'Failed to reset password' });
+    }
   });
 });
 
@@ -1209,12 +1220,14 @@ app.post('/api/forum/messages', authenticateToken, (req, res) => {
 
 // Register new user - always customer role
 app.post('/api/users/register', async (req, res) => {
-  const { username, email, password } = req.body;
+  const { username, email, password } = req.body;  // Should match what you send
+  
+  console.log('Registration attempt:', { username, email }); // Add this for debugging
 
   if (!username || !email || !password) {
-    return res.status(400).json({
-      success: false,
-      message: 'Username, email and password are required'
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Username, email and password are required' 
     });
   }
 
@@ -1224,25 +1237,26 @@ app.post('/api/users/register', async (req, res) => {
     [username, email],
     async (err, existingUser) => {
       if (err) {
+        console.error('Database error:', err);
         return res.status(500).json({ error: err.message });
       }
 
       if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username or email already exists'
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Username or email already exists' 
         });
       }
 
       try {
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Always insert as 'customer' role
         db.run(
           'INSERT INTO Users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
           [username, email, hashedPassword, 'customer'],
           function(err) {
             if (err) {
+              console.error('Insert error:', err);
               return res.status(500).json({ error: err.message });
             }
 
@@ -1254,6 +1268,7 @@ app.post('/api/users/register', async (req, res) => {
           }
         );
       } catch (error) {
+        console.error('Hash error:', error);
         res.status(500).json({ error: error.message });
       }
     }

@@ -129,6 +129,36 @@
       "network": "网络错误，请稍后重试"
     }
   },
+  "resetPassword": {
+    "title": "重设密码",
+    "subtitle": "请输入您的新密码",
+    "email": "邮箱地址",
+    "emailPlaceholder": "请输入您的邮箱地址",
+    "emailReadonly": "邮箱不可修改",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "请输入新密码（至少6个字符）",
+    "confirmPassword": "确认密码",
+    "confirmPasswordPlaceholder": "请再次输入新密码",
+    "submitButton": "确认修改",
+    "submitting": "重置中...",
+    "backToLogin": "返回登录",
+    "success": "密码重置成功！正在跳转到登录页面...",
+    "requirements": {
+      "title": "密码要求：",
+      "minLength": "至少6个字符",
+      "lettersNumbers": "建议包含字母和数字",
+      "specialChars": "建议使用特殊字符增强安全性"
+    },
+    "error": {
+      "emailRequired": "请输入邮箱地址",
+      "emailInvalid": "请输入有效的邮箱地址",
+      "passwordRequired": "请输入新密码",
+      "passwordTooShort": "密码至少需要6个字符",
+      "passwordMismatch": "两次输入的密码不一致",
+      "resetFailed": "重置失败，请重试",
+      "networkError": "网络错误，请稍后重试"
+    }
+  },
   "cart": {
     "title": "购物车",
     "empty": "购物车是空的",

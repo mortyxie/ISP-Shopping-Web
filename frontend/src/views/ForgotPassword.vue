@@ -26,11 +26,6 @@
               {{ errorMessage }}
             </div>
 
-            <!-- 成功信息 -->
-            <div v-if="successMessage" class="success-message">
-              {{ successMessage }}
-            </div>
-
             <!-- 提交按钮 -->
             <button
               type="submit"
@@ -66,14 +61,12 @@ const form = ref({
 })
 
 const errorMessage = ref('')
-const successMessage = ref('')
 const isLoading = ref(false)
 
 // 发送重置密码链接
 const handleForgotPassword = async () => {
   // 清除之前的消息
   errorMessage.value = ''
-  successMessage.value = ''
 
   // 验证输入
   if (!form.value.email.trim()) {
@@ -91,30 +84,14 @@ const handleForgotPassword = async () => {
   isLoading.value = true
 
   try {
-    // 调用后端API
-    const response = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email: form.value.email })
+    // Just redirect to reset password page with email
+    router.push({
+      path: '/reset-password',
+      query: { email: form.value.email }
     })
-
-    const data = await response.json()
-
-    if (response.ok) {
-      successMessage.value = data.message || t('forgotPassword.success')
-
-      // 3秒后返回登录页
-      setTimeout(() => {
-        router.push('/login')
-      }, 3000)
-    } else {
-      errorMessage.value = data.error || t('forgotPassword.error.general')
-    }
   } catch (error) {
-    console.error('Forgot password error:', error)
-    errorMessage.value = t('forgotPassword.error.network')
+    console.error('Redirect error:', error)
+    errorMessage.value = t('forgotPassword.error.general')
   } finally {
     isLoading.value = false
   }
