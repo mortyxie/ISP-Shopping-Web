@@ -175,7 +175,11 @@
     "continueShopping": "Continue Shopping",
     "update": "Update",
     "itemRemoved": "Item removed",
-    "confirmRemove": "Are you sure you want to remove this item?"
+    "confirmRemove": "Are you sure you want to remove this item?",
+    "selectedCount": "Selected",
+    "buyNow": "Buy Now",
+    "buySelected": "Buy Selected",
+    "buyAll": "Buy All"
   },
   "productDetail": {
     "condition": "Condition",

@@ -179,7 +179,11 @@
     "continueShopping": "继续购物",
     "update": "更新",
     "itemRemoved": "商品已删除",
-    "confirmRemove": "确定要删除这个商品吗？"
+    "confirmRemove": "确定要删除这个商品吗？",
+    "selectedCount": "已选",
+    "buyNow": "立即购买",
+    "buySelected": "购买选中",
+    "buyAll": "购买全部"
   },
   "productDetail": {
     "condition": "成色",
