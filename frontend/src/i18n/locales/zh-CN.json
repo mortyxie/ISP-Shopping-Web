@@ -392,6 +392,9 @@
     "manageOrdersDesc": "查看和管理所有订单",
     "manageCartDesc": "管理购物车商品",
     "viewProfileDesc": "查看和管理个人信息",
-    "fetchError": "获取商家数据失败"
+    "fetchError": "获取商家数据失败",
+    "searchPlaceholder": "搜索专辑或歌手名称...",
+    "searchResults": "找到 {count} 个结果",
+    "noSearchResults": "没有找到匹配的结果"
   }
 }

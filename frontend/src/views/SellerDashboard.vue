@@ -31,20 +31,47 @@
       <!-- Albums List with Products Inside -->
       <div v-if="activeTab === 'albums'" class="tab-content">
         <h2 class="section-title">My Albums</h2>
-        
+
+        <!-- Search Box -->
+        <div class="search-section">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              type="text"
+              v-model="searchQuery"
+              :placeholder="$t('seller.searchPlaceholder')"
+              class="search-input"
+              @input="handleSearch"
+            />
+            <button
+              v-if="searchQuery"
+              @click="clearSearch"
+              class="clear-search-btn"
+            >
+              ×
+            </button>
+          </div>
+          <div class="search-info">
+            <span v-if="searchQuery" class="search-result-count">
+              {{ $t('seller.searchResults', { count: filteredAlbums.length }) }}
+            </span>
+          </div>
+        </div>
+
         <div v-if="isLoading" class="loading-state">
           <div class="loading-spinner"></div>
         </div>
 
-        <div v-else-if="albums.length === 0" class="empty-state">
-          <p>You haven't added any albums yet.</p>
-          <button class="btn-primary" @click="activeTab = 'add-album'">
+        <div v-else-if="filteredAlbums.length === 0" class="empty-state">
+          <p v-if="searchQuery">{{ $t('seller.noSearchResults') }}</p>
+          <p v-else>You haven't added any albums yet.</p>
+          <button v-if="!searchQuery" class="btn-primary" @click="activeTab = 'add-album'">
             Add Your First Album
           </button>
         </div>
 
         <div v-else class="albums-container">
-          <div v-for="album in albums" :key="album.album_id" class="album-card">
+          <div v-for="album in filteredAlbums" :key="album.album_id" class="album-card">
             <!-- Album Header -->
             <div class="album-header">
               <img :src="album.cover_image_url" :alt="album.title" class="album-cover">
@@ -316,11 +343,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { getCurrentUser, isAuthenticated } from '../services/authService'
 
 const router = useRouter()
+const { t } = useI18n()
 
 // State
 const activeTab = ref('albums')
@@ -329,6 +358,23 @@ const albums = ref([])
 const albumProducts = ref({})
 const expandedAlbums = ref([])
 const orders = ref([])
+const searchQuery = ref('')
+
+// Computed: Filter albums by search query
+const filteredAlbums = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return albums.value
+  }
+
+  const query = searchQuery.value.toLowerCase().trim()
+
+  // Filter albums whose title or artist matches
+  return albums.value.filter(album => {
+    const titleMatch = album.title?.toLowerCase().includes(query)
+    const artistMatch = album.artist?.toLowerCase().includes(query)
+    return titleMatch || artistMatch
+  })
+})
 
 // Album form
 const editingAlbum = ref(false)
@@ -818,6 +864,16 @@ const viewOrder = (order) => {
   // Navigate to order detail with a query param to indicate seller view
   router.push(`/order/${order.order_id}?seller=true`);
 };
+
+// Search handlers
+const handleSearch = () => {
+  // Filter is handled by computed property filteredAlbums
+  console.log('Search query:', searchQuery.value)
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+}
 </script>
 
 <style scoped>
@@ -874,6 +930,75 @@ const viewOrder = (order) => {
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-xl);
   box-shadow: var(--shadow-md);
+}
+
+/* Search Section */
+.search-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-light);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  transition: border-color var(--transition-base);
+}
+
+.search-box:focus-within {
+  border-color: var(--color-primary);
+}
+
+.search-icon {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-base);
+  outline: none;
+  color: var(--color-text-primary);
+  padding: var(--spacing-xs) 0;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.clear-search-btn {
+  background: none;
+  border: none;
+  font-size: var(--font-size-xl);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+}
+
+.clear-search-btn:hover {
+  background: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.search-info {
+  margin-top: var(--spacing-sm);
+}
+
+.search-result-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .section-title {
