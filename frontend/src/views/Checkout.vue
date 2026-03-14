@@ -36,88 +36,125 @@
             <div class="form-section">
               <h2>{{ $t('checkout.shippingAddress') }}</h2>
               
-              <div class="form-group">
-                <label for="fullName">{{ $t('checkout.fullName') }} *</label>
-                <input
-                  id="fullName"
-                  type="text"
-                  v-model="form.fullName"
-                  :placeholder="$t('checkout.fullNamePlaceholder')"
-                  class="form-input"
-                  required
-                />
+              <!-- Address Selection (if user has saved addresses) -->
+              <div v-if="addresses.length > 0" class="address-selector">
+                <div class="address-list">
+                  <div
+                    v-for="addr in addresses"
+                    :key="addr.address_id"
+                    class="address-option"
+                    :class="{ selected: selectedAddressId === addr.address_id }"
+                    @click="selectAddress(addr)"
+                  >
+                    <div class="address-radio">
+                      <span class="radio-dot" :class="{ checked: selectedAddressId === addr.address_id }"></span>
+                    </div>
+                    <div class="address-details">
+                      <div class="address-header">
+                        <span class="address-name">{{ addr.recipient_name }}</span>
+                        <span v-if="addr.is_default" class="default-badge">{{ $t('address.default') }}</span>
+                      </div>
+                      <p class="address-phone">{{ addr.phone }}</p>
+                      <p class="address-line">{{ addr.address_line1 }}</p>
+                      <p v-if="addr.address_line2" class="address-line">{{ addr.address_line2 }}</p>
+                      <p class="address-line">
+                        {{ addr.city }}{{ addr.state ? ', ' + addr.state : '' }} {{ addr.postal_code }}
+                      </p>
+                      <p class="address-country">{{ addr.country }}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <button class="btn-link" @click="$router.push('/addresses')">
+                  {{ $t('checkout.manageAddresses') }}
+                </button>
               </div>
 
-              <div class="form-group">
-                <label for="addressLine1">{{ $t('checkout.addressLine1') }} *</label>
-                <input
-                  id="addressLine1"
-                  type="text"
-                  v-model="form.addressLine1"
-                  :placeholder="$t('checkout.addressLine1Placeholder')"
-                  class="form-input"
-                  required
-                />
-              </div>
-
-              <div class="form-group">
-                <label for="addressLine2">{{ $t('checkout.addressLine2') }}</label>
-                <input
-                  id="addressLine2"
-                  type="text"
-                  v-model="form.addressLine2"
-                  :placeholder="$t('checkout.addressLine2Placeholder')"
-                  class="form-input"
-                />
-              </div>
-
-              <div class="form-row">
-                <div class="form-group half">
-                  <label for="city">{{ $t('checkout.city') }} *</label>
+              <!-- Manual Address Form (shown when no addresses) -->
+              <div v-if="addresses.length === 0" class="address-form">
+                <div class="form-group">
+                  <label for="fullName">{{ $t('checkout.fullName') }} *</label>
                   <input
-                    id="city"
+                    id="fullName"
                     type="text"
-                    v-model="form.city"
-                    :placeholder="$t('checkout.cityPlaceholder')"
+                    v-model="form.fullName"
+                    :placeholder="$t('checkout.fullNamePlaceholder')"
                     class="form-input"
                     required
                   />
                 </div>
-                <div class="form-group half">
-                  <label for="postalCode">{{ $t('checkout.postalCode') }} *</label>
+
+                <div class="form-group">
+                  <label for="addressLine1">{{ $t('checkout.addressLine1') }} *</label>
                   <input
-                    id="postalCode"
+                    id="addressLine1"
                     type="text"
-                    v-model="form.postalCode"
-                    :placeholder="$t('checkout.postalCodePlaceholder')"
+                    v-model="form.addressLine1"
+                    :placeholder="$t('checkout.addressLine1Placeholder')"
                     class="form-input"
                     required
                   />
                 </div>
-              </div>
 
-              <div class="form-group">
-                <label for="country">{{ $t('checkout.country') }} *</label>
-                <select id="country" v-model="form.country" class="form-input" required>
-                  <option value="">{{ $t('checkout.selectCountry') }}</option>
-                  <option value="China">China</option>
-                  <option value="United States">United States</option>
-                  <option value="United Kingdom">United Kingdom</option>
-                  <option value="Japan">Japan</option>
-                  <option value="Other">{{ $t('checkout.other') }}</option>
-                </select>
-              </div>
+                <div class="form-group">
+                  <label for="addressLine2">{{ $t('checkout.addressLine2') }}</label>
+                  <input
+                    id="addressLine2"
+                    type="text"
+                    v-model="form.addressLine2"
+                    :placeholder="$t('checkout.addressLine2Placeholder')"
+                    class="form-input"
+                  />
+                </div>
 
-              <div class="form-group">
-                <label for="phone">{{ $t('checkout.phone') }} *</label>
-                <input
-                  id="phone"
-                  type="tel"
-                  v-model="form.phone"
-                  :placeholder="$t('checkout.phonePlaceholder')"
-                  class="form-input"
-                  required
-                />
+                <div class="form-row">
+                  <div class="form-group half">
+                    <label for="city">{{ $t('checkout.city') }} *</label>
+                    <input
+                      id="city"
+                      type="text"
+                      v-model="form.city"
+                      :placeholder="$t('checkout.cityPlaceholder')"
+                      class="form-input"
+                      required
+                    />
+                  </div>
+                  <div class="form-group half">
+                    <label for="postalCode">{{ $t('checkout.postalCode') }} *</label>
+                    <input
+                      id="postalCode"
+                      type="text"
+                      v-model="form.postalCode"
+                      :placeholder="$t('checkout.postalCodePlaceholder')"
+                      class="form-input"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="country">{{ $t('checkout.country') }} *</label>
+                  <select id="country" v-model="form.country" class="form-input" required>
+                    <option value="">{{ $t('checkout.selectCountry') }}</option>
+                    <option value="China">China</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Japan">Japan</option>
+                    <option value="Other">{{ $t('checkout.other') }}</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="phone">{{ $t('checkout.phone') }} *</label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    v-model="form.phone"
+                    :placeholder="$t('checkout.phonePlaceholder')"
+                    class="form-input"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
@@ -220,6 +257,8 @@ const error = ref(null)
 const errorMessage = ref('')
 const successMessage = ref('')
 const paymentMethod = ref('支付宝') // Set default payment method
+const addresses = ref([])
+const selectedAddressId = ref(null)
 
 // Form data - shipping info
 const form = ref({
@@ -231,6 +270,44 @@ const form = ref({
   country: '',
   phone: ''
 })
+
+// Load addresses
+const loadAddresses = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch('/api/addresses', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (response.ok) {
+      addresses.value = await response.json()
+      // Select default address if exists
+      const defaultAddr = addresses.value.find(a => a.is_default)
+      if (defaultAddr) {
+        selectAddress(defaultAddr)
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load addresses:', err)
+  }
+}
+
+// Add this function (around line 180-200)
+// Select address
+const selectAddress = (address) => {
+  selectedAddressId.value = address.address_id
+  // Auto-fill form
+  form.value.fullName = address.recipient_name
+  form.value.addressLine1 = address.address_line1
+  form.value.addressLine2 = address.address_line2 || ''
+  form.value.city = address.city
+  form.value.state = address.state || ''
+  form.value.postalCode = address.postal_code
+  form.value.country = address.country
+  form.value.phone = address.phone
+}
 
 // Computed values
 const subtotal = computed(() => {
@@ -372,6 +449,7 @@ onMounted(() => {
     return
   }
   loadCheckoutItems()
+  loadAddresses()
 })
 </script>
 
@@ -744,6 +822,118 @@ onMounted(() => {
   color: var(--color-text-secondary);
   text-align: center;
   line-height: 1.6;
+}
+
+/* Address Selector Styles */
+.address-selector {
+  margin-bottom: var(--spacing-lg);
+}
+
+.address-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-xs);
+}
+
+.address-option {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 2px solid transparent;
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-xs);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  background: var(--color-bg);
+}
+
+.address-option:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-light);
+}
+
+.address-option.selected {
+  border-color: var(--color-primary);
+  background: var(--color-accent);
+}
+
+.address-radio {
+  padding-top: 4px;
+}
+
+.radio-dot {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  transition: all var(--transition-base);
+}
+
+.radio-dot.checked {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  box-shadow: inset 0 0 0 4px white;
+}
+
+.address-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.address-name {
+  font-weight: bold;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+}
+
+.default-badge {
+  background: var(--color-primary);
+  color: white;
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.address-phone {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+  font-size: var(--font-size-sm);
+}
+
+.address-line {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 2px 0;
+}
+
+.address-country {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  padding: var(--spacing-xs) 0;
+  margin-top: var(--spacing-xs);
+}
+
+.btn-link:hover {
+  color: var(--color-primary-dark);
 }
 
 /* Responsive */
