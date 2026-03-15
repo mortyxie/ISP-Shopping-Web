@@ -1,36 +1,36 @@
 <template>
   <div class="seller-dashboard">
     <div class="container">
-      <h1 class="page-title">Seller Dashboard</h1>
-      
+      <h1 class="page-title">{{ $t('seller.pageTitle') }}</h1>
+
       <!-- Tabs -->
       <div class="dashboard-tabs">
-        <button 
-          class="tab-btn" 
+        <button
+          class="tab-btn"
           :class="{ active: activeTab === 'albums' }"
           @click="activeTab = 'albums'"
         >
-          My Albums
+          {{ $t('seller.myAlbums') }}
         </button>
-        <button 
-          class="tab-btn" 
+        <button
+          class="tab-btn"
           :class="{ active: activeTab === 'add-album' }"
           @click="activeTab = 'add-album'"
         >
-          Add New Album
+          {{ $t('seller.addNewAlbum') }}
         </button>
-        <button 
-          class="tab-btn" 
+        <button
+          class="tab-btn"
           :class="{ active: activeTab === 'orders' }"
           @click="activeTab = 'orders'"
         >
-          Orders
+          {{ $t('seller.ordersTab') }}
         </button>
       </div>
 
       <!-- Albums List with Products Inside -->
       <div v-if="activeTab === 'albums'" class="tab-content">
-        <h2 class="section-title">My Albums</h2>
+        <h2 class="section-title">{{ $t('seller.myAlbums') }}</h2>
 
         <!-- Search Box -->
         <div class="search-section">
@@ -149,9 +149,9 @@
 
         <div v-else-if="filteredAlbums.length === 0 && searchType === 'name'" class="empty-state">
           <p v-if="searchQuery">{{ $t('seller.noSearchResults') }}</p>
-          <p v-else>You haven't added any albums yet.</p>
+          <p v-else>{{ $t('seller.noAlbumsYet') }}</p>
           <button v-if="!searchQuery" class="btn-primary" @click="activeTab = 'add-album'">
-            Add Your First Album
+            {{ $t('seller.addFirstAlbum') }}
           </button>
         </div>
 
@@ -163,12 +163,12 @@
               <div class="album-info">
                 <h3>{{ album.title }}</h3>
                 <p>{{ album.artist }}</p>
-                <p class="product-count">{{ album.product_count || 0 }} products</p>
+                <p class="product-count">{{ $t('seller.productsCount', { count: album.product_count || 0 }) }}</p>
                 <div class="album-actions">
-                  <button class="btn-secondary" @click="editAlbum(album)">Edit Album</button>
-                  <button class="btn-primary" @click="addProduct(album)">+ Add Product</button>
+                  <button class="btn-secondary" @click="editAlbum(album)">{{ $t('seller.editAlbumBtn') }}</button>
+                  <button class="btn-primary" @click="addProduct(album)">{{ $t('seller.addProductBtn') }}</button>
                   <button class="btn-toggle" @click="toggleAlbumProducts(album.album_id)">
-                    {{ expandedAlbums.includes(album.album_id) ? '▼ Hide Products' : '▶ Show Products' }}
+                    {{ expandedAlbums.includes(album.album_id) ? $t('seller.hideProducts') : $t('seller.showProducts') }}
                   </button>
                 </div>
               </div>
@@ -176,10 +176,10 @@
 
             <!-- Products List (expandable) -->
             <div v-if="expandedAlbums.includes(album.album_id)" class="products-section">
-              <h4 class="products-title">Products in this Album</h4>
-              
+              <h4 class="products-title">{{ $t('seller.productsInAlbum') }}</h4>
+
               <div v-if="!albumProducts[album.album_id] || albumProducts[album.album_id].length === 0" class="no-products">
-                <p>No products in this album yet.</p>
+                <p>{{ $t('seller.noProductsInAlbum') }}</p>
               </div>
 
               <div v-else class="products-list">
@@ -206,17 +206,17 @@
                     <h5>{{ product.condition }}</h5>
                     <p class="product-price">¥{{ product.price }}</p>
                   </div>
-                  
+
                   <div class="product-actions">
-                    <button class="btn-secondary small" @click="editProduct(product)">Edit</button>
+                    <button class="btn-secondary small" @click="editProduct(product)">{{ $t('seller.edit') }}</button>
                     <button
                       class="btn-small"
                       :class="product.is_active ? 'btn-warning' : 'btn-success'"
                       @click="toggleProductStatus(product)"
                     >
-                      {{ product.is_active !== 1 ? 'Activate' : 'Deactivate' }}
+                      {{ product.is_active !== 1 ? $t('seller.activate') : $t('seller.deactivate') }}
                     </button>
-                    <button class="btn-danger small" @click="deleteProduct(product)">Delete</button>
+                    <button class="btn-danger small" @click="deleteProduct(product)">{{ $t('seller.deleteProduct') }}</button>
                   </div>
                 </div>
               </div>
@@ -227,56 +227,56 @@
 
       <!-- Add Album Form -->
       <div v-if="activeTab === 'add-album'" class="tab-content">
-        <h2 class="section-title">{{ editingAlbum ? 'Edit Album' : 'Add New Album' }}</h2>
+        <h2 class="section-title">{{ editingAlbum ? $t("seller.editAlbumTitle") : $t("seller.addAlbumTitle") }}</h2>
         
         <form @submit.prevent="saveAlbum" class="album-form">
           <div class="form-group">
-            <label>Album Title *</label>
+            <label>{{ $t("seller.albumTitle") }}</label>
             <input 
               type="text" 
               v-model="albumForm.title" 
               required
-              placeholder="e.g., Abbey Road"
+              :placeholder="$t('seller.albumTitlePlaceholder')"
             >
           </div>
 
           <div class="form-group">
-            <label>Artist *</label>
+            <label>{{ $t("seller.artist") }}</label>
             <input 
               type="text" 
               v-model="albumForm.artist" 
               required
-              placeholder="e.g., The Beatles"
+              :placeholder="$t('seller.artistPlaceholder')"
             >
           </div>
 
           <div class="form-group">
-            <label>Genre</label>
+            <label>{{ $t("seller.genre") }}</label>
             <select v-model="albumForm.genre">
-              <option value="">Select Genre</option>
-              <option value="Rock">Rock</option>
-              <option value="Pop">Pop</option>
-              <option value="Jazz">Jazz</option>
-              <option value="Classical">Classical</option>
-              <option value="Electronic">Electronic</option>
-              <option value="Hip Hop">Hip Hop</option>
-              <option value="Other">Other</option>
+              <option value="">{{ $t("seller.selectGenre") }}</option>
+              <option value="Rock">{{ $t("seller.rock") }}</option>
+              <option value="Pop">{{ $t("seller.pop") }}</option>
+              <option value="Jazz">{{ $t("seller.jazz") }}</option>
+              <option value="Classical">{{ $t("seller.classical") }}</option>
+              <option value="Electronic">{{ $t("seller.electronic") }}</option>
+              <option value="Hip Hop">{{ $t("seller.hipHop") }}</option>
+              <option value="Other">{{ $t("seller.other") }}</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Release Year</label>
+            <label>{{ $t("seller.releaseYear") }}</label>
             <input 
               type="number" 
               v-model="albumForm.release_year"
               min="1900"
               :max="new Date().getFullYear()"
-              placeholder="e.g., 1969"
+              :placeholder="$t('seller.releaseYearPlaceholder')"
             >
           </div>
 
           <div class="form-group">
-            <label>Tracklist</label>
+            <label>{{ $t("seller.tracklist") }}</label>
             <textarea 
               v-model="albumForm.tracklist" 
               rows="4"
@@ -285,7 +285,7 @@
           </div>
 
           <div class="form-group">
-            <label>Album Cover Image *</label>
+            <label>{{ $t("seller.albumCoverImage") }}</label>
             <div class="image-upload-area">
               <input 
                 type="file" 
@@ -294,17 +294,17 @@
                 ref="albumImageInput"
               >
               <div v-if="albumForm.cover_image" class="image-preview">
-                <img :src="albumForm.cover_image" alt="Preview">
+                <img :src="albumForm.cover_image" :alt="$t('seller.preview')">
                 <button type="button" @click="removeAlbumImage" class="remove-image">×</button>
               </div>
-              <p class="help-text">Upload the album cover image (required)</p>
+              <p class="help-text">{{ $t("seller.uploadCoverRequired") }}</p>
             </div>
           </div>
 
           <div class="form-actions">
-            <button type="button" class="btn-secondary" @click="cancelAlbumForm">Cancel</button>
+            <button type="button" class="btn-secondary" @click="cancelAlbumForm">{{ $t("seller.cancel") }}</button>
             <button type="submit" class="btn-primary" :disabled="!albumForm.title || !albumForm.artist || !albumForm.cover_image">
-              {{ editingAlbum ? 'Update Album' : 'Create Album' }}
+              {{ editingAlbum ? $t("seller.updateAlbum") : $t("seller.createAlbum") }}
             </button>
           </div>
         </form>
@@ -312,20 +312,20 @@
 
       <!-- Orders -->
       <div v-if="activeTab === 'orders'" class="tab-content">
-        <h2 class="section-title">Orders</h2>
+        <h2 class="section-title">{{ $t("seller.ordersTab") }}</h2>
         <div class="orders-list">
           <div v-for="order in orders" :key="order.order_id" class="order-item">
             <div class="order-header">
-              <span>Order #{{ order.order_id }}</span>
-              <span class="order-status" :class="order.status">{{ order.status }}</span>
+              <span>{{ $t("seller.orderNumber") }}{{ order.order_id }}</span>
+              <span class="order-status" :class="order.status">{{ $t('orders.status.' + order.status) }}</span>
             </div>
             <div class="order-details">
-              <p>Date: {{ formatDate(order.created_at) }}</p>
-              <p>Total: ¥{{ order.total_amount }}</p>
-              <p>Items: {{ order.item_count }}</p>
-              <p>Customer: {{ order.customer_name }}</p>
+              <p>{{ $t("seller.date") }} {{ formatDate(order.created_at) }}</p>
+              <p>{{ $t("seller.total") }} ¥{{ order.total_amount }}</p>
+              <p>{{ $t("seller.itemsLabel") }} {{ order.item_count }}</p>
+              <p>{{ $t("seller.customer") }} {{ order.customer_name }}</p>
             </div>
-            <button class="btn-secondary" @click="viewOrder(order)">View Details</button>
+            <button class="btn-secondary" @click="viewOrder(order)">{{ $t("seller.viewDetails") }}</button>
           </div>
         </div>
       </div>
@@ -334,42 +334,42 @@
     <!-- Add/Edit Product Modal -->
     <div v-if="showProductModal" class="modal">
       <div class="modal-content">
-        <h3>{{ editingProduct ? 'Edit Product' : 'Add Product to ' + selectedAlbum?.title }}</h3>
+        <h3>{{ editingProduct ? $t("seller.editProductTitle") : $t("seller.addProductTitle") + (selectedAlbum?.title || "") }}</h3>
         
         <form @submit.prevent="saveProduct" class="product-form">
           <div class="form-group">
-            <label>Condition *</label>
+            <label>{{ $t("seller.conditionRequired") }}</label>
             <select v-model="productForm.condition" required>
-              <option value="">Select Condition</option>
-              <option value="Mint">Mint</option>
-              <option value="Near Mint">Near Mint</option>
-              <option value="Good">Good</option>
+              <option value="">{{ $t("seller.selectCondition") }}</option>
+              <option value="Mint">{{ $t("seller.mint") }}</option>
+              <option value="Near Mint">{{ $t("seller.nearMint") }}</option>
+              <option value="Good">{{ $t("seller.good") }}</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>Price (¥) *</label>
-            <input 
-              type="number" 
-              v-model="productForm.price" 
-              step="0.01" 
+            <label>{{ $t("seller.priceRequired") }}</label>
+            <input
+              type="number"
+              v-model="productForm.price"
+              step="0.01"
               min="0"
               required
-              placeholder="e.g., 299.99"
+              :placeholder="$t('seller.pricePlaceholder')"
             >
           </div>
 
           <div class="form-group">
-            <label>Description</label>
-            <textarea 
-              v-model="productForm.description" 
+            <label>{{ $t("seller.description") }}</label>
+            <textarea
+              v-model="productForm.description"
               rows="3"
-              placeholder="Describe the condition, any notes about this copy..."
+              :placeholder="$t('seller.descriptionPlaceholder')"
             ></textarea>
           </div>
 
           <div class="form-group">
-            <label>Product Images * (minimum 3, maximum 5)</label>
+            <label>{{ $t("seller.productImages") }}</label>
             
             <!-- Image Grid -->
             <div class="images-grid">
@@ -378,12 +378,12 @@
                 :key="index"
                 class="image-item"
               >
-                <img :src="image" :alt="`Product image ${index + 1}`">
+                <img :src="image" :alt="`${$t('seller.productImage')} ${index + 1}`">
                 <button 
                   type="button" 
                   @click="removeProductImage(index)" 
                   class="remove-image"
-                  title="Remove image"
+                  :title="$t('seller.removeImage')"
                 >
                   ×
                 </button>
@@ -402,24 +402,24 @@
                   style="display: none"
                   multiple
                 >
-                <span>+ Add Image</span>
+                <span>{{ $t("seller.addImage") }}</span>
               </div>
             </div>
 
-            <p class="image-count">{{ productForm.images.length }}/5 images</p>
+            <p class="image-count">{{ productForm.images.length }}{{ $t("seller.imagesCount") }}</p>
             <p class="help-text" :class="{ 'text-danger': productForm.images.length < 3 }">
-              {{ productForm.images.length < 3 ? 'Please upload at least 3 images' : 'Minimum 3 images required' }}
+              {{ $t("seller.minImagesRequired") }}
             </p>
           </div>
 
           <div class="form-actions">
-            <button type="button" class="btn-secondary" @click="closeProductModal">Cancel</button>
-            <button 
-              type="submit" 
-              class="btn-primary" 
+            <button type="button" class="btn-secondary" @click="closeProductModal">{{ $t("seller.cancel") }}</button>
+            <button
+              type="submit"
+              class="btn-primary"
               :disabled="!productForm.condition || !productForm.price || productForm.images.length < 3"
             >
-              {{ editingProduct ? 'Update Product' : 'Add Product' }}
+              {{ editingProduct ? $t("seller.updateProduct") : $t("seller.addProduct") }}
             </button>
           </div>
         </form>
@@ -431,7 +431,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+
 const router = useRouter()
+const { t } = useI18n()
 
 // State
 const activeTab = ref('albums')
@@ -650,7 +653,7 @@ const handleProductImageUpload = (e) => {
 }
 
 const removeProductImage = (index) => {
-  if (confirm('Are you sure you want to remove this image?')) {
+  if (confirm(t('seller.confirmRemoveImage'))) {
     productForm.value.images.splice(index, 1)
   }
 }
@@ -803,7 +806,7 @@ const editProduct = (product) => {
 const saveProduct = async () => {
   try {
     if (productForm.value.images.length < 3) {
-      alert('Please upload at least 3 images')
+      alert(t('seller.minImagesRequired'))
       return
     }
     
@@ -855,9 +858,9 @@ const deleteProduct = async (product) => {
     alert('Error: Product ID not found')
     return
   }
-  
-  if (!confirm(`Are you sure you want to delete this product? This action cannot be undone.`)) return
-  
+
+  if (!confirm(t('seller.confirmDeleteProduct'))) return
+
   try {
     const token = localStorage.getItem('token')
     const response = await fetch(`/api/products/${productId}`, {
@@ -892,7 +895,7 @@ const toggleProductStatus = async (product) => {
   const currentStatus = product.is_active !== undefined ? product.is_active : true;
   const action = currentStatus ? 'deactivate' : 'activate';
   
-  if (!confirm(`Are you sure you want to ${action} this product?`)) return;
+  if (!confirm(t('seller.confirmToggleProduct', { action }))) return;
   
   try {
     const token = localStorage.getItem('token');
