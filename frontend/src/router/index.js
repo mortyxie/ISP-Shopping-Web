@@ -85,7 +85,7 @@ const routes = [
   {
     path: '/address',
     name: 'Address',
-    component: () => import('../views/Address.vue'),
+    component: () => import('../views/Addresses.vue'),
     meta: { requiresAuth: true }
   },
   {
@@ -125,6 +125,12 @@ const routes = [
     path: '/album/:id',
     name: 'AlbumDetail',
     component: () => import('../views/AlbumDetail.vue')
+  },
+  {
+    path: '/addresses',
+    name: 'Addresses',
+    component: () => import('../views/Addresses.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

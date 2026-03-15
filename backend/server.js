@@ -71,7 +71,7 @@ app.post('/api/users/login', (req, res) => {
             if (!user) {
                 return res.json({ 
                     success: false, 
-                    message: '用户名或密码错误' 
+                    message: 'Log In Invalid' 
                 });
             }
             
@@ -79,7 +79,7 @@ app.post('/api/users/login', (req, res) => {
             if (!validPassword) {
                 return res.json({ 
                     success: false, 
-                    message: '用户名或密码错误' 
+                    message: 'Log In Invalid' 
                 });
             }
             
@@ -1461,6 +1461,205 @@ app.get('/api/seller/dashboard', authenticateToken, (req, res) => {
       );
     }
   );
+});
+
+// ==================== SHIPPING ADDRESS API ====================
+
+// Get all addresses for current user
+app.get('/api/addresses', authenticateToken, (req, res) => {
+    const userId = req.user.userId;
+    
+    db.all(
+        `SELECT * FROM Shipping_Address 
+         WHERE user_id = ? 
+         ORDER BY is_default DESC, created_at DESC`,
+        [userId],
+        (err, rows) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            res.json(rows);
+        }
+    );
+});
+
+// Get single address
+app.get('/api/addresses/:id', authenticateToken, (req, res) => {
+    const addressId = req.params.id;
+    const userId = req.user.userId;
+    
+    db.get(
+        'SELECT * FROM Shipping_Address WHERE address_id = ? AND user_id = ?',
+        [addressId, userId],
+        (err, address) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (!address) {
+                return res.status(404).json({ error: 'Address not found' });
+            }
+            res.json(address);
+        }
+    );
+});
+
+// Create new address
+app.post('/api/addresses', authenticateToken, (req, res) => {
+    const userId = req.user.userId;
+    const {
+        recipient_name,
+        phone,
+        address_line1,
+        address_line2,
+        city,
+        state,
+        postal_code,
+        country,
+        is_default = false
+    } = req.body;
+    
+    // Validate required fields
+    if (!recipient_name || !phone || !address_line1 || !city || !postal_code || !country) {
+        return res.status(400).json({ 
+            error: 'Recipient name, phone, address line 1, city, postal code, and country are required' 
+        });
+    }
+    
+    db.serialize(() => {
+        // If this is default, unset any existing default
+        if (is_default) {
+            db.run(
+                'UPDATE Shipping_Address SET is_default = 0 WHERE user_id = ?',
+                [userId]
+            );
+        }
+        
+        db.run(
+            `INSERT INTO Shipping_Address (
+                user_id, recipient_name, phone, address_line1, address_line2,
+                city, state, postal_code, country, is_default, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [userId, recipient_name, phone, address_line1, address_line2,
+             city, state, postal_code, country, is_default ? 1 : 0],
+            function(err) {
+                if (err) {
+                    console.error('Error creating address:', err);
+                    return res.status(500).json({ error: err.message });
+                }
+                
+                res.status(201).json({
+                    success: true,
+                    address_id: this.lastID,
+                    message: 'Address created successfully'
+                });
+            }
+        );
+    });
+});
+
+// Update address
+app.put('/api/addresses/:id', authenticateToken, (req, res) => {
+    const addressId = req.params.id;
+    const userId = req.user.userId;
+    const {
+        recipient_name,
+        phone,
+        address_line1,
+        address_line2,
+        city,
+        state,
+        postal_code,
+        country,
+        is_default
+    } = req.body;
+    
+    // First check if address belongs to user
+    db.get(
+        'SELECT * FROM Shipping_Address WHERE address_id = ? AND user_id = ?',
+        [addressId, userId],
+        (err, address) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (!address) {
+                return res.status(404).json({ error: 'Address not found' });
+            }
+            
+            db.serialize(() => {
+                // If setting as default, unset any existing default
+                if (is_default && !address.is_default) {
+                    db.run(
+                        'UPDATE Shipping_Address SET is_default = 0 WHERE user_id = ?',
+                        [userId]
+                    );
+                }
+                
+                db.run(
+                    `UPDATE Shipping_Address 
+                     SET recipient_name = ?, phone = ?, address_line1 = ?, address_line2 = ?,
+                         city = ?, state = ?, postal_code = ?, country = ?, is_default = ?,
+                         updated_at = CURRENT_TIMESTAMP
+                     WHERE address_id = ?`,
+                    [recipient_name, phone, address_line1, address_line2,
+                     city, state, postal_code, country, is_default ? 1 : 0, addressId],
+                    function(err) {
+                        if (err) {
+                            console.error('Error updating address:', err);
+                            return res.status(500).json({ error: err.message });
+                        }
+                        
+                        res.json({
+                            success: true,
+                            message: 'Address updated successfully'
+                        });
+                    }
+                );
+            });
+        }
+    );
+});
+
+// Delete address
+app.delete('/api/addresses/:id', authenticateToken, (req, res) => {
+    const addressId = req.params.id;
+    const userId = req.user.userId;
+    
+    db.run(
+        'DELETE FROM Shipping_Address WHERE address_id = ? AND user_id = ?',
+        [addressId, userId],
+        function(err) {
+            if (err) {
+                console.error('Error deleting address:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Address not found' });
+            }
+            
+            res.json({
+                success: true,
+                message: 'Address deleted successfully'
+            });
+        }
+    );
+});
+
+// Get default address
+app.get('/api/addresses/default/me', authenticateToken, (req, res) => {
+    const userId = req.user.userId;
+    
+    db.get(
+        'SELECT * FROM Shipping_Address WHERE user_id = ? AND is_default = 1',
+        [userId],
+        (err, address) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json(address || null);
+        }
+    );
 });
 
 // ==================== ALBUMS API ====================

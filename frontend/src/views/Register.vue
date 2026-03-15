@@ -8,42 +8,39 @@
           <form @submit.prevent="handleRegister" class="register-form">
             <!-- 用户名 -->
             <div class="form-group">
-              <label for="username">{{ $t('register.username') }}</label>
+              <label for="username">{{ $t('register.username') }} *</label>
               <input
                 id="username"
                 type="text"
                 v-model="form.username"
                 :placeholder="$t('register.usernamePlaceholder')"
                 class="form-input"
-                autocomplete="username"
                 required
               />
             </div>
 
             <!-- 邮箱 -->
             <div class="form-group">
-              <label for="email">{{ $t('register.email') }}</label>
+              <label for="email">{{ $t('register.email') }} *</label>
               <input
                 id="email"
                 type="email"
                 v-model="form.email"
                 :placeholder="$t('register.emailPlaceholder')"
                 class="form-input"
-                autocomplete="email"
                 required
               />
             </div>
 
             <!-- 密码 -->
             <div class="form-group">
-              <label for="password">{{ $t('register.password') }}</label>
+              <label for="password">{{ $t('register.password') }} *</label>
               <input
                 id="password"
                 type="password"
                 v-model="form.password"
                 :placeholder="$t('register.passwordPlaceholder')"
                 class="form-input"
-                autocomplete="new-password"
                 required
                 minlength="6"
               />
@@ -51,17 +48,117 @@
 
             <!-- 确认密码 -->
             <div class="form-group">
-              <label for="confirmPassword">{{ $t('register.confirmPassword') }}</label>
+              <label for="confirmPassword">{{ $t('register.confirmPassword') }} *</label>
               <input
                 id="confirmPassword"
                 type="password"
                 v-model="form.confirmPassword"
                 :placeholder="$t('register.confirmPasswordPlaceholder')"
                 class="form-input"
-                autocomplete="new-password"
                 required
                 minlength="6"
               />
+            </div>
+
+            <!-- Shipping Address Section -->
+            <div class="form-section">
+              <h2 class="section-title">{{ $t('register.shippingAddress') }}</h2>
+              
+              <div class="form-group">
+                <label for="recipientName">{{ $t('register.recipientName') }} *</label>
+                <input
+                  id="recipientName"
+                  type="text"
+                  v-model="address.recipient_name"
+                  :placeholder="$t('register.recipientNamePlaceholder')"
+                  class="form-input"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="phone">{{ $t('register.phone') }} *</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  v-model="address.phone"
+                  :placeholder="$t('register.phonePlaceholder')"
+                  class="form-input"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="addressLine1">{{ $t('register.addressLine1') }} *</label>
+                <input
+                  id="addressLine1"
+                  type="text"
+                  v-model="address.address_line1"
+                  :placeholder="$t('register.addressLine1Placeholder')"
+                  class="form-input"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="addressLine2">{{ $t('register.addressLine2') }}</label>
+                <input
+                  id="addressLine2"
+                  type="text"
+                  v-model="address.address_line2"
+                  :placeholder="$t('register.addressLine2Placeholder')"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group half">
+                  <label for="city">{{ $t('register.city') }} *</label>
+                  <input
+                    id="city"
+                    type="text"
+                    v-model="address.city"
+                    :placeholder="$t('register.cityPlaceholder')"
+                    class="form-input"
+                    required
+                  />
+                </div>
+                <div class="form-group half">
+                  <label for="state">{{ $t('register.state') }}</label>
+                  <input
+                    id="state"
+                    type="text"
+                    v-model="address.state"
+                    :placeholder="$t('register.statePlaceholder')"
+                    class="form-input"
+                  />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group half">
+                  <label for="postalCode">{{ $t('register.postalCode') }} *</label>
+                  <input
+                    id="postalCode"
+                    type="text"
+                    v-model="address.postal_code"
+                    :placeholder="$t('register.postalCodePlaceholder')"
+                    class="form-input"
+                    required
+                  />
+                </div>
+                <div class="form-group half">
+                  <label for="country">{{ $t('register.country') }} *</label>
+                  <select id="country" v-model="address.country" class="form-input" required>
+                    <option value="">{{ $t('register.selectCountry') }}</option>
+                    <option value="China">China</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Japan">Japan</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             <!-- 错误信息 -->
@@ -98,15 +195,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { register, isAuthenticated } from '../services/authService'
 
 const router = useRouter()
 const { t } = useI18n()
 
-// 表单数据 - removed role, always buyer
+// 表单数据
 const form = ref({
   username: '',
   email: '',
@@ -114,24 +210,29 @@ const form = ref({
   confirmPassword: ''
 })
 
+// Shipping address data
+const address = ref({
+  recipient_name: '',
+  phone: '',
+  address_line1: '',
+  address_line2: '',
+  city: '',
+  state: '',
+  postal_code: '',
+  country: ''
+})
+
 const errorMessage = ref('')
 const successMessage = ref('')
 const isLoading = ref(false)
 
-// 如果已登录，重定向到首页
-onMounted(() => {
-  if (isAuthenticated()) {
-    router.push('/')
-  }
-})
-
 // 处理注册
 const handleRegister = async () => {
-  // 清除之前的消息
+  // Clear previous messages
   errorMessage.value = ''
   successMessage.value = ''
   
-  // 表单验证
+  // Validate user info
   if (!form.value.username.trim()) {
     errorMessage.value = t('register.error.usernameRequired')
     return
@@ -142,7 +243,6 @@ const handleRegister = async () => {
     return
   }
   
-  // 简单邮箱格式验证
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(form.value.email)) {
     errorMessage.value = t('register.error.emailInvalid')
@@ -163,31 +263,111 @@ const handleRegister = async () => {
     errorMessage.value = t('register.error.passwordMismatch')
     return
   }
+
+  // Validate shipping address
+  if (!address.value.recipient_name) {
+    errorMessage.value = t('register.error.recipientNameRequired')
+    return
+  }
+  
+  if (!address.value.phone) {
+    errorMessage.value = t('register.error.phoneRequired')
+    return
+  }
+  
+  if (!address.value.address_line1) {
+    errorMessage.value = t('register.error.addressRequired')
+    return
+  }
+  
+  if (!address.value.city) {
+    errorMessage.value = t('register.error.cityRequired')
+    return
+  }
+  
+  if (!address.value.postal_code) {
+    errorMessage.value = t('register.error.postalCodeRequired')
+    return
+  }
+  
+  if (!address.value.country) {
+    errorMessage.value = t('register.error.countryRequired')
+    return
+  }
   
   isLoading.value = true
   
   try {
-    // 调用注册服务 - role is hardcoded as 'customer'
-    const result = await register({
-      username: form.value.username,
-      email: form.value.email,
-      password: form.value.password,
-      role: 'customer' // Always customer
+    // Register user
+    const registerResponse = await fetch('/api/users/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: form.value.username,
+        email: form.value.email,
+        password: form.value.password
+      })
     })
     
-    if (result.success) {
-      successMessage.value = t('register.success')
-      
-      // 3秒后跳转到登录页
-      setTimeout(() => {
-        router.push('/login')
-      }, 3000)
-    } else {
-      errorMessage.value = result.message || t('register.error.registrationFailed')
+    const registerData = await registerResponse.json()
+    
+    if (!registerResponse.ok) {
+      errorMessage.value = registerData.message || t('register.error.registrationFailed')
+      return
     }
+    
+    // Login to get token
+    const loginResponse = await fetch('/api/users/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        username: form.value.username,
+        password: form.value.password
+      })
+    })
+    
+    const loginData = await loginResponse.json()
+    
+    if (!loginResponse.ok || !loginData.success) {
+      errorMessage.value = t('register.error.loginAfterRegister')
+      setTimeout(() => router.push('/login'), 2000)
+      return
+    }
+    
+    // Save token
+    localStorage.setItem('token', loginData.token)
+    localStorage.setItem('currentUser', JSON.stringify(loginData.user))
+    
+    // Add shipping address
+    const addressResponse = await fetch('/api/addresses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${loginData.token}`
+      },
+      body: JSON.stringify({
+        ...address.value,
+        is_default: true
+      })
+    })
+    
+    const addressData = await addressResponse.json()
+    
+    if (addressResponse.ok) {
+      successMessage.value = t('register.success')
+      window.dispatchEvent(new Event('userStateChanged'))
+      setTimeout(() => router.push('/'), 2000)
+    } else {
+      errorMessage.value = addressData.error || t('address.messages.error.createFailed')
+    }
+    
   } catch (error) {
     console.error('Registration error:', error)
-    errorMessage.value = t('register.error.registrationFailed')
+    errorMessage.value = t('register.error.networkError')
   } finally {
     isLoading.value = false
   }
@@ -243,9 +423,17 @@ const handleRegister = async () => {
   }
 }
 
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+  width: 100%;
+}
+
 .register-container {
   width: 100%;
-  max-width: 500px;
+  max-width: 600px;
+  margin: 0 auto;
   position: relative;
   z-index: 1;
 }
@@ -295,6 +483,30 @@ const handleRegister = async () => {
 
 .form-input:focus {
   border-color: var(--color-primary);
+}
+
+.form-section {
+  margin-top: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-lg);
+  border-left: 4px solid var(--color-primary);
+}
+
+.section-title {
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-lg);
+  font-weight: bold;
+}
+
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.form-group.half {
+  flex: 1;
 }
 
 .error-message {
@@ -370,6 +582,22 @@ const handleRegister = async () => {
 }
 
 /* 响应式设计 */
+@media (max-width: 768px) {
+  .register-card {
+    padding: var(--spacing-xl);
+    margin: var(--spacing-md);
+  }
+
+  .register-title {
+    font-size: var(--font-size-xxl);
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
 @media (max-width: 767.98px) {
   .register-card {
     padding: var(--spacing-xl);
