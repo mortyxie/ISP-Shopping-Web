@@ -45,6 +45,24 @@
         </div>
       </div>
     </div>
+
+    <!-- 邮箱跳转弹窗 -->
+    <div v-if="showEmailModal" class="modal-overlay" @click="closeModal">
+      <div class="email-modal" @click.stop>
+        <div class="modal-icon">📧</div>
+        <h2 class="modal-title">{{ $t('forgotPassword.emailSentTitle') }}</h2>
+        <p class="modal-message">{{ $t('forgotPassword.emailSentMessage') }}</p>
+        <p class="modal-email">{{ form.email }}</p>
+        <div class="modal-actions">
+          <button @click="goToResetPassword" class="modal-button primary">
+            {{ $t('forgotPassword.openEmail') }}
+          </button>
+          <button @click="closeModal" class="modal-button secondary">
+            {{ $t('forgotPassword.close') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -62,6 +80,7 @@ const form = ref({
 
 const errorMessage = ref('')
 const isLoading = ref(false)
+const showEmailModal = ref(false)
 
 // 发送重置密码链接
 const handleForgotPassword = async () => {
@@ -84,17 +103,45 @@ const handleForgotPassword = async () => {
   isLoading.value = true
 
   try {
-    // Just redirect to reset password page with email
-    router.push({
-      path: '/reset-password',
-      query: { email: form.value.email }
+    // 调用后端 API 发送重置密码邮件
+    const response = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: form.value.email
+      })
     })
+
+    const data = await response.json()
+
+    if (response.ok && data.success) {
+      // 显示邮箱跳转弹窗
+      showEmailModal.value = true
+    } else {
+      errorMessage.value = data.message || t('forgotPassword.error.general')
+    }
   } catch (error) {
-    console.error('Redirect error:', error)
+    console.error('Forgot password error:', error)
     errorMessage.value = t('forgotPassword.error.general')
   } finally {
     isLoading.value = false
   }
+}
+
+// 关闭弹窗
+const closeModal = () => {
+  showEmailModal.value = false
+}
+
+// 前往重置密码页面
+const goToResetPassword = () => {
+  closeModal()
+  router.push({
+    path: '/reset-password',
+    query: { email: form.value.email }
+  })
 }
 </script>
 
@@ -294,6 +341,141 @@ const handleForgotPassword = async () => {
 
   .page-title {
     font-size: var(--font-size-xxl);
+  }
+}
+
+/* 邮箱弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.email-modal {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xxl);
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.3s ease-out;
+  border: 2px solid var(--color-primary);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-icon {
+  font-size: 4rem;
+  margin-bottom: var(--spacing-md);
+  animation: bounce 1s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.modal-title {
+  font-size: var(--font-size-xxl);
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-md);
+  font-weight: bold;
+}
+
+.modal-message {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.6;
+}
+
+.modal-email {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  font-weight: bold;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-md);
+  word-break: break-all;
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-direction: column;
+}
+
+.modal-button {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.modal-button.primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.modal-button.primary:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.modal-button.secondary {
+  background: var(--color-bg-light);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.modal-button.secondary:hover {
+  background: var(--color-border);
+}
+
+/* 弹窗响应式 */
+@media (min-width: 768px) {
+  .modal-actions {
+    flex-direction: row;
+  }
+
+  .modal-button {
+    flex: 1;
   }
 }
 </style>

@@ -31,20 +31,132 @@
       <!-- Albums List with Products Inside -->
       <div v-if="activeTab === 'albums'" class="tab-content">
         <h2 class="section-title">My Albums</h2>
-        
+
+        <!-- Search Box -->
+        <div class="search-section">
+          <div class="search-type-toggle">
+            <button
+              @click="searchType = 'name'"
+              :class="{ active: searchType === 'name' }"
+              class="search-type-btn"
+            >
+              {{ $t('seller.searchByName') }}
+            </button>
+            <button
+              @click="searchType = 'id'"
+              :class="{ active: searchType === 'id' }"
+              class="search-type-btn"
+            >
+              {{ $t('seller.searchById') }}
+            </button>
+          </div>
+
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input
+              v-if="searchType === 'id'"
+              type="number"
+              v-model="searchIdQuery"
+              :placeholder="$t('seller.searchByIdPlaceholder')"
+              class="search-input"
+              @keydown.enter="handleSearchById"
+            />
+            <input
+              v-else
+              type="text"
+              v-model="searchQuery"
+              :placeholder="$t('seller.searchPlaceholder')"
+              class="search-input"
+            />
+            <button
+              v-if="searchIdQuery"
+              @click="handleSearchById"
+              class="search-go-btn"
+              :disabled="isSearching"
+            >
+              {{ isSearching ? '...' : $t('seller.search') }}
+            </button>
+            <button
+              v-if="searchQuery || searchIdQuery"
+              @click="clearSearch"
+              class="clear-search-btn"
+            >
+              ×
+            </button>
+          </div>
+          <div class="search-info">
+            <span v-if="searchQuery" class="search-result-count">
+              {{ $t('seller.searchResults', { count: filteredAlbums.length }) }}
+            </span>
+            <span v-if="searchIdQuery && searchedProduct" class="search-result-count">
+              {{ $t('seller.productFound') }}
+            </span>
+            <span v-if="searchIdQuery && hasSearchedById && !isSearching && !searchedProduct" class="search-result-count error">
+              {{ $t('seller.productNotFound') }}
+            </span>
+            <span v-if="searchIdQuery && isSearching" class="search-result-count">
+              {{ $t('seller.searching') }}
+            </span>
+          </div>
+
+          <!-- Display searched product by ID -->
+          <div v-if="searchIdQuery && searchedProduct" class="searched-product-card">
+            <h4>{{ $t('seller.searchedProduct') }}</h4>
+            <div class="product-summary">
+              <div class="summary-item">
+                <strong>ID:</strong> {{ searchedProduct.product_id || searchedProduct.id }}
+              </div>
+              <div class="summary-item">
+                <strong>{{ $t('seller.album') }}:</strong> {{ searchedProduct.album_title }}
+              </div>
+              <div class="summary-item">
+                <strong>{{ $t('seller.condition') }}:</strong> {{ searchedProduct.condition }}
+              </div>
+              <div class="summary-item">
+                <strong>{{ $t('seller.price') }}:</strong> ¥{{ searchedProduct.price }}
+              </div>
+              <div class="summary-item">
+                <strong>{{ $t('seller.status') }}:</strong>
+                <span :class="searchedProduct.is_active ? 'status-active' : 'status-inactive'">
+                  {{ searchedProduct.is_active ? $t('seller.active') : $t('seller.inactive') }}
+                </span>
+              </div>
+              <div class="summary-actions">
+                <button class="btn-secondary small" @click="editProduct(searchedProduct)">
+                  {{ $t('seller.edit') }}
+                </button>
+                <button
+                  class="btn-small"
+                  :class="searchedProduct.is_active ? 'btn-warning' : 'btn-success'"
+                  @click="toggleProductStatus(searchedProduct)"
+                >
+                  {{ searchedProduct.is_active !== 1 ? $t('seller.activate') : $t('seller.deactivate') }}
+                </button>
+                <button
+                  @click="clearSearch"
+                  class="btn-secondary small"
+                >
+                  {{ $t('seller.close') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="isLoading" class="loading-state">
           <div class="loading-spinner"></div>
         </div>
 
-        <div v-else-if="albums.length === 0" class="empty-state">
-          <p>You haven't added any albums yet.</p>
-          <button class="btn-primary" @click="activeTab = 'add-album'">
+        <div v-else-if="filteredAlbums.length === 0 && searchType === 'name'" class="empty-state">
+          <p v-if="searchQuery">{{ $t('seller.noSearchResults') }}</p>
+          <p v-else>You haven't added any albums yet.</p>
+          <button v-if="!searchQuery" class="btn-primary" @click="activeTab = 'add-album'">
             Add Your First Album
           </button>
         </div>
 
-        <div v-else class="albums-container">
-          <div v-for="album in albums" :key="album.album_id" class="album-card">
+        <div v-else-if="searchType === 'name'" class="albums-container">
+          <div v-for="album in filteredAlbums" :key="album.album_id" class="album-card">
             <!-- Album Header -->
             <div class="album-header">
               <img :src="album.cover_image_url" :alt="album.title" class="album-cover">
@@ -90,6 +202,7 @@
                   </div>
                   
                   <div class="product-details">
+                    <div class="product-id">ID: {{ product.id || product.product_id }}</div>
                     <h5>{{ product.condition }}</h5>
                     <p class="product-price">¥{{ product.price }}</p>
                   </div>
@@ -316,10 +429,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { getCurrentUser, isAuthenticated } from '../services/authService'
-
 const router = useRouter()
 
 // State
@@ -329,6 +440,28 @@ const albums = ref([])
 const albumProducts = ref({})
 const expandedAlbums = ref([])
 const orders = ref([])
+const searchQuery = ref('')
+const searchIdQuery = ref('')
+const searchType = ref('name')
+const searchedProduct = ref(null)
+const isSearching = ref(false)
+const hasSearchedById = ref(false)
+
+// Computed: Filter albums by search query
+const filteredAlbums = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return albums.value
+  }
+
+  const query = searchQuery.value.toLowerCase().trim()
+
+  // Filter albums whose title or artist matches
+  return albums.value.filter(album => {
+    const titleMatch = album.title?.toLowerCase().includes(query)
+    const artistMatch = album.artist?.toLowerCase().includes(query)
+    return titleMatch || artistMatch
+  })
+})
 
 // Album form
 const editingAlbum = ref(false)
@@ -371,12 +504,6 @@ const getProductImages = (product) => {
     }
   }
   return []
-}
-
-// Helper: Get album product count
-const getAlbumProductCount = (albumId) => {
-  const album = albums.value.find(a => a.album_id === albumId);
-  return album?.product_count || 0;
 }
 
 // Helper: Format date
@@ -818,6 +945,62 @@ const viewOrder = (order) => {
   // Navigate to order detail with a query param to indicate seller view
   router.push(`/order/${order.order_id}?seller=true`);
 };
+
+const handleSearchById = async () => {
+  const productId = String(searchIdQuery.value || '').trim()
+  console.log('handleSearchById called with productId:', productId)
+
+  if (!productId) {
+    searchedProduct.value = null
+    return
+  }
+
+  hasSearchedById.value = true
+  isSearching.value = true
+  searchedProduct.value = null
+
+  try {
+    const token = localStorage.getItem('token')
+    console.log('Token:', token ? 'exists' : 'not found')
+    const url = `/api/seller/products/${productId}`
+    console.log('Fetching from URL:', url)
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    console.log('Response status:', response.status)
+    console.log('Response ok:', response.ok)
+
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Found product data:', data)
+      searchedProduct.value = data
+    } else if (response.status === 404) {
+      console.log('Product not found (404)')
+      searchedProduct.value = null
+    } else {
+      console.error('Failed to search product by ID, status:', response.status)
+      const errorText = await response.text()
+      console.error('Response text:', errorText)
+      searchedProduct.value = null
+    }
+  } catch (error) {
+    console.error('Search product error:', error)
+    searchedProduct.value = null
+  } finally {
+    isSearching.value = false
+  }
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchIdQuery.value = ''
+  searchedProduct.value = null
+  hasSearchedById.value = false
+}
 </script>
 
 <style scoped>
@@ -874,6 +1057,177 @@ const viewOrder = (order) => {
   border-radius: var(--border-radius-lg);
   padding: var(--spacing-xl);
   box-shadow: var(--shadow-md);
+}
+
+/* Search Section */
+.search-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-light);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  transition: border-color var(--transition-base);
+}
+
+.search-box:focus-within {
+  border-color: var(--color-primary);
+}
+
+.search-icon {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-secondary);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-base);
+  outline: none;
+  color: var(--color-text-primary);
+  padding: var(--spacing-xs) 0;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.clear-search-btn {
+  background: none;
+  border: none;
+  font-size: var(--font-size-xl);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+}
+
+.clear-search-btn:hover {
+  background: var(--color-accent);
+  color: var(--color-primary);
+}
+
+.search-info {
+  margin-top: var(--spacing-sm);
+}
+
+.search-result-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.search-result-count.error {
+  color: var(--color-error);
+}
+
+.search-go-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+}
+
+.search-go-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.search-go-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-type-toggle {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.search-type-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-bg-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+  color: var(--color-text-secondary);
+}
+
+.search-type-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.search-type-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.searched-product-card {
+  background: var(--color-bg-light);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.searched-product-card h4 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-base);
+}
+
+.product-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.summary-item {
+  padding: var(--spacing-sm);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.summary-item strong {
+  color: var(--color-text-primary);
+  margin-right: var(--spacing-xs);
+}
+
+.status-active {
+  color: var(--color-success);
+  font-weight: bold;
+}
+
+.status-inactive {
+  color: var(--color-error);
+  font-weight: bold;
+}
+
+.summary-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
 }
 
 .section-title {
@@ -1035,6 +1389,17 @@ const viewOrder = (order) => {
 
 .product-details {
   flex: 1;
+}
+
+.product-id {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-family: monospace;
+  background: var(--color-bg-light);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
 }
 
 .product-details h5 {
