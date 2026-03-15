@@ -105,6 +105,36 @@ app.post('/api/users/login', (req, res) => {
     );
 });
 
+// Forgot password
+app.post('/api/auth/forgot-password', (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: '请输入邮箱地址'
+    });
+  }
+
+  // Check if user exists with this email
+  db.get(
+    'SELECT * FROM Users WHERE email = ?',
+    [email],
+    (err, user) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      // For security, don't reveal if email exists
+      // Just return success message
+      res.json({
+        success: true,
+        message: '如果该邮箱已注册，重置密码链接已发送到您的邮箱'
+      });
+    }
+  );
+});
+
 // Reset password
 app.post('/api/auth/reset-password', async (req, res) => {
   const { email, newPassword } = req.body;
@@ -227,7 +257,7 @@ app.get('/api/seller/albums', authenticateToken, requireSeller, (req, res) => {
 // Get seller's products
 app.get('/api/seller/products', authenticateToken, requireSeller, (req, res) => {
   db.all(
-    `SELECT 
+    `SELECT
       p.*,
       a.title as album_title,
       a.cover_image_url as album_cover
@@ -240,6 +270,35 @@ app.get('/api/seller/products', authenticateToken, requireSeller, (req, res) => 
         return res.status(500).json({ error: err.message });
       }
       res.json(rows);
+    }
+  );
+});
+
+// Get seller's product by product_id
+app.get('/api/seller/products/:id', authenticateToken, requireSeller, (req, res) => {
+  const productId = req.params.id;
+
+  db.get(
+    `SELECT
+      p.*,
+      a.title as album_title,
+      a.artist,
+      a.genre,
+      a.release_year,
+      a.tracklist,
+      a.cover_image_url as album_cover
+    FROM Products p
+    JOIN Albums a ON p.album_id = a.album_id
+    WHERE p.product_id = ?`,
+    [productId],
+    (err, product) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      if (!product) {
+        return res.status(404).json({ error: 'Product not found' });
+      }
+      res.json(product);
     }
   );
 });

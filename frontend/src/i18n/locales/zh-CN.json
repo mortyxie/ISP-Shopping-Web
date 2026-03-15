@@ -141,6 +141,10 @@
     "sending": "发送中...",
     "backToLogin": "返回登录",
     "success": "密码重置链接已发送到您的邮箱",
+    "emailSentTitle": "邮件已发送",
+    "emailSentMessage": "重置密码的链接已发送到您的邮箱，请查收",
+    "openEmail": "前往重置密码",
+    "close": "关闭",
     "error": {
       "emailRequired": "请输入邮箱地址",
       "emailInvalid": "请输入有效的邮箱地址",
@@ -242,7 +246,11 @@
     "continueShopping": "继续购物",
     "update": "更新",
     "itemRemoved": "商品已删除",
-    "confirmRemove": "确定要删除这个商品吗？"
+    "confirmRemove": "确定要删除这个商品吗？",
+    "selectedCount": "已选",
+    "buyNow": "立即购买",
+    "buySelected": "购买选中",
+    "buyAll": "购买全部"
   },
   "productDetail": {
     "condition": "成色",
@@ -433,6 +441,26 @@
     "manageOrdersDesc": "查看和管理所有订单",
     "manageCartDesc": "管理购物车商品",
     "viewProfileDesc": "查看和管理个人信息",
-    "fetchError": "获取商家数据失败"
+    "fetchError": "获取商家数据失败",
+    "searchPlaceholder": "搜索专辑或歌手名称...",
+    "searchResults": "找到 {count} 个结果",
+    "noSearchResults": "没有找到匹配的结果",
+    "searchByName": "按名称搜索",
+    "searchById": "按ID搜索",
+    "searchByIdPlaceholder": "输入商品ID...",
+    "productFound": "已找到商品",
+    "productNotFound": "未找到该ID的商品",
+    "searchedProduct": "搜索结果",
+    "album": "专辑",
+    "condition": "成色",
+    "price": "价格",
+    "status": "状态",
+    "active": "已上架",
+    "inactive": "已下架",
+    "edit": "编辑",
+    "activate": "上架",
+    "deactivate": "下架",
+    "close": "关闭",
+    "search": "搜索"
   }
 }
