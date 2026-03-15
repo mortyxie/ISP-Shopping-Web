@@ -106,6 +106,48 @@ CREATE TABLE Order_Items (
 CREATE INDEX idx_order_items_order ON Order_Items(order_id);
 CREATE INDEX idx_order_items_product ON Order_Items(product_id);
 
+-- Table: Shipping_Address
+-- Description: Stores user shipping addresses
+CREATE TABLE Shipping_Address (
+    address_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    recipient_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    address_line1 VARCHAR(255) NOT NULL,
+    address_line2 VARCHAR(255),
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100),
+    postal_code VARCHAR(20) NOT NULL,
+    country VARCHAR(100) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    CHECK (is_default IN (0, 1))
+);
+
+-- Create index for faster lookups
+CREATE INDEX idx_shipping_address_user ON Shipping_Address(user_id);
+CREATE INDEX idx_shipping_address_default ON Shipping_Address(is_default);
+
+-- Trigger to ensure only one default address per user
+CREATE TRIGGER ensure_single_default_address
+BEFORE INSERT ON Shipping_Address
+BEGIN
+    UPDATE Shipping_Address 
+    SET is_default = 0 
+    WHERE user_id = NEW.user_id AND NEW.is_default = 1;
+END;
+
+CREATE TRIGGER ensure_single_default_address_update
+BEFORE UPDATE OF is_default ON Shipping_Address
+WHEN NEW.is_default = 1 AND OLD.is_default = 0
+BEGIN
+    UPDATE Shipping_Address 
+    SET is_default = 0 
+    WHERE user_id = NEW.user_id AND address_id != NEW.address_id;
+END;
+
 -- Table: Reviews
 -- Description: Product reviews with merchant replies
 CREATE TABLE Reviews (
