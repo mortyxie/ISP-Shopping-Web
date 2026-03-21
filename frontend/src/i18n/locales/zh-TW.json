@@ -334,7 +334,36 @@
     "tracklist": "曲目列表",
     "availableCopies": "可用唱片",
     "noProducts": "該專輯暫無唱片",
-    "noItemsInCondition": "該成色下暫無唱片"
+    "noItemsInCondition": "該成色下暫無唱片",
+    "reviews": {
+      "title": "寶貝評價",
+      "summary": {
+        "average": "平均評分",
+        "total": "條評價"
+      },
+      "form": {
+        "title": "發表評價",
+        "selectSku": "選擇購買的 SKU",
+        "selectPlaceholder": "請選擇",
+        "rating": "評分",
+        "comment": "評價內容",
+        "commentPlaceholder": "寫下你對這張唱片的感受吧（類似淘寶/拼多多評價）",
+        "submit": "提交評價",
+        "submitting": "提交中..."
+      },
+      "noReviews": "暫無評價，快來成為第一個評價的人吧。",
+      "merchantReply": "商家回覆",
+      "noReply": "商家暫未回覆",
+      "purchaseInfo": "購買資訊",
+      "sku": "SKU",
+      "productId": "product_id"
+    },
+    "conditions": {
+      "mint": "完美品",
+      "nearMint": "近完美品",
+      "good": "良好",
+      "copies": "件"
+    }
   },
   "category": {
     "albums": "張專輯",

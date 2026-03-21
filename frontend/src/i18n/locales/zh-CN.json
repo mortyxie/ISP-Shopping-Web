@@ -334,7 +334,36 @@
     "tracklist": "曲目列表",
     "availableCopies": "可用唱片",
     "noProducts": "该专辑暂无唱片",
-    "noItemsInCondition": "该成色下暂无唱片"
+    "noItemsInCondition": "该成色下暂无唱片",
+    "reviews": {
+      "title": "宝贝评价",
+      "summary": {
+        "average": "平均评分",
+        "total": "条评价"
+      },
+      "form": {
+        "title": "发表评价",
+        "selectSku": "选择购买的 SKU",
+        "selectPlaceholder": "请选择",
+        "rating": "评分",
+        "comment": "评价内容",
+        "commentPlaceholder": "写下你对这张唱片的感受吧（类似淘宝/拼多多评价）",
+        "submit": "提交评价",
+        "submitting": "提交中..."
+      },
+      "noReviews": "暂无评价，快来成为第一个评价的人吧。",
+      "merchantReply": "商家回复",
+      "noReply": "商家暂未回复",
+      "purchaseInfo": "购买信息",
+      "sku": "SKU",
+      "productId": "product_id"
+    },
+    "conditions": {
+      "mint": "完美品",
+      "nearMint": "近完美品",
+      "good": "良好",
+      "copies": "件"
+    }
   },
   "category": {
     "albums": "张专辑",

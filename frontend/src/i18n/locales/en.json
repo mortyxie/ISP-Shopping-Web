@@ -331,7 +331,36 @@
     "tracklist": "Tracklist",
     "availableCopies": "Available Copies",
     "noProducts": "No copies available for this album",
-    "noItemsInCondition": "No copies in this condition"
+    "noItemsInCondition": "No copies in this condition",
+    "reviews": {
+      "title": "Customer Reviews",
+      "summary": {
+        "average": "Average Rating",
+        "total": "reviews"
+      },
+      "form": {
+        "title": "Write a Review",
+        "selectSku": "Select Purchased SKU",
+        "selectPlaceholder": "Please select",
+        "rating": "Rating",
+        "comment": "Your Review",
+        "commentPlaceholder": "Share your thoughts about this record...",
+        "submit": "Submit Review",
+        "submitting": "Submitting..."
+      },
+      "noReviews": "No reviews yet. Be the first to review!",
+      "merchantReply": "Seller's Response",
+      "noReply": "No response yet",
+      "purchaseInfo": "Purchase Info",
+      "sku": "SKU",
+      "productId": "product_id"
+    },
+    "conditions": {
+      "mint": "Mint",
+      "nearMint": "Near Mint",
+      "good": "Good",
+      "copies": "copies"
+    }
   },
   "category": {
     "albums": "albums",

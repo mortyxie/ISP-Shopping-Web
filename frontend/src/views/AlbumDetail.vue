@@ -52,7 +52,7 @@
           >
             <div class="condition-header">
               <h3 class="condition-title">{{ condition }}</h3>
-              <span class="condition-count">{{ getProductsByCondition(condition).length }} copies</span>
+              <span class="condition-count">{{ getProductsByCondition(condition).length }} {{ $t('albumDetail.conditions.copies') }}</span>
             </div>
 
             <div v-if="getProductsByCondition(condition).length === 0" class="no-items">
@@ -85,7 +85,7 @@
 
         <!-- Reviews -->
         <div class="reviews-section">
-          <h2 class="section-title">宝贝评价</h2>
+          <h2 class="section-title">{{ $t('albumDetail.reviews.title') }}</h2>
 
           <div class="reviews-summary" v-if="reviews.length">
             <div class="avg">
@@ -93,25 +93,25 @@
               <div class="avg-stars">
                 <span v-for="i in 5" :key="i" class="star" :class="{ on: i <= Math.round(avgRating) }">★</span>
               </div>
-              <div class="count">{{ reviews.length }} 条评价</div>
+              <div class="count">{{ reviews.length }} {{ $t('albumDetail.reviews.summary.total') }}</div>
             </div>
           </div>
 
           <div class="review-form panel" v-if="isLoggedIn && canReview">
-            <h3 class="panel-title">发表评价</h3>
+            <h3 class="panel-title">{{ $t('albumDetail.reviews.form.title') }}</h3>
 
             <div class="form-row">
-              <div class="label">选择购买的 SKU</div>
+              <div class="label">{{ $t('albumDetail.reviews.form.selectSku') }}</div>
               <select class="select" v-model="selectedPurchaseKey">
-                <option value="" disabled>请选择</option>
+                <option value="" disabled>{{ $t('albumDetail.reviews.form.selectPlaceholder') }}</option>
                 <option v-for="p in eligiblePurchases" :key="p.key" :value="p.key">
-                  {{ formatTime(p.purchased_at) }} · {{ p.condition }} · product_id: {{ p.product_id }}
+                  {{ formatTime(p.purchased_at) }} · {{ p.condition }} · {{ $t('albumDetail.reviews.productId') }}: {{ p.product_id }}
                 </option>
               </select>
             </div>
 
             <div class="form-row">
-              <div class="label">评分</div>
+              <div class="label">{{ $t('albumDetail.reviews.form.rating') }}</div>
               <div class="stars">
                 <button
                   v-for="i in 5"
@@ -128,26 +128,24 @@
             </div>
 
             <div class="form-row">
-              <div class="label">评价内容</div>
+              <div class="label">{{ $t('albumDetail.reviews.form.comment') }}</div>
               <textarea
                 class="textarea"
                 v-model="comment"
                 rows="4"
-                placeholder="写下你对这张唱片的感受吧（类似淘宝/拼多多评价）"
+                :placeholder="$t('albumDetail.reviews.form.commentPlaceholder')"
               />
             </div>
 
             <div class="form-actions">
               <button class="btn-primary" :disabled="submitting" @click="submitReview">
-                {{ submitting ? '提交中...' : '提交评价' }}
+                {{ submitting ? $t('albumDetail.reviews.form.submitting') : $t('albumDetail.reviews.form.submit') }}
               </button>
             </div>
           </div>
 
-          <!-- 不满足条件时不显示提示面板（按需求隐藏说明提示） -->
-
           <div v-if="reviews.length === 0" class="no-reviews">
-            暂无评价，快来成为第一个评价的人吧。
+            {{ $t('albumDetail.reviews.noReviews') }}
           </div>
 
           <div v-else class="reviews-list">
@@ -167,19 +165,19 @@
 
               <div class="review-body">
                 <div class="purchase">
-                  购买信息：{{ r.purchased_at ? formatTime(r.purchased_at) : '-' }}
-                  · SKU：{{ r.sku_condition || '-' }}（product_id: {{ r.product_id }}）
+                  {{ $t('albumDetail.reviews.purchaseInfo') }}：{{ r.purchased_at ? formatTime(r.purchased_at) : '-' }}
+                  · {{ $t('albumDetail.reviews.sku') }}：{{ r.sku_condition || '-' }}（{{ $t('albumDetail.reviews.productId') }}: {{ r.product_id }}）
                 </div>
                 <div class="comment">{{ r.comment }}</div>
               </div>
 
               <div class="merchant-reply" v-if="r.merchant_reply">
-                <div class="tag">商家回复</div>
+                <div class="tag">{{ $t('albumDetail.reviews.merchantReply') }}</div>
                 <div class="reply-content">{{ r.merchant_reply.content }}</div>
                 <div class="reply-time">{{ formatTime(r.merchant_reply.reply_at) }}</div>
               </div>
               <div class="merchant-reply muted" v-else>
-                商家暂未回复
+                {{ $t('albumDetail.reviews.noReply') }}
               </div>
             </div>
           </div>
@@ -196,7 +194,7 @@ import { useI18n } from 'vue-i18n'
 import { getAlbumWithProducts } from '../services/albumService'
 import { isAuthenticated } from '../services/authService'
 import { getPurchaseRecordsForCurrentUser } from '../services/orderService'
-import { addAlbumReview, getAlbumReviews, hasUserReviewedProduct, seedAlbumReviewsIfNeeded } from '../services/reviewService'
+import { addAlbumReview, getAlbumReviews, hasUserReviewedProduct } from '../services/reviewService'
 
 const route = useRoute()
 const router = useRouter()
@@ -236,14 +234,8 @@ const purchasesForThisAlbum = computed(() => {
   return records.filter((r) => albumProductIds.value.has(r.product_id))
 })
 
-const eligiblePurchases = computed(() => {
-  return purchasesForThisAlbum.value
-    .filter((p) => !hasUserReviewedProduct(p.product_id))
-    .map((p) => ({
-      ...p,
-      key: `${p.order_id}_${p.product_id}`
-    }))
-})
+// FIX: Make this an async computed or ref that updates
+const eligiblePurchases = ref([])
 
 const canReview = computed(() => eligiblePurchases.value.length > 0)
 
@@ -275,8 +267,13 @@ const loadAlbum = async () => {
     albumGenre.value = data.genre
     albumTracklist.value = data.tracklist
     products.value = data.products || []
-    seedAlbumReviewsIfNeeded(albumId.value, products.value)
-    reviews.value = getAlbumReviews(albumId.value)
+    
+    // FIX: Await the async getAlbumReviews
+    const fetchedReviews = await getAlbumReviews(albumId.value)
+    reviews.value = fetchedReviews
+    
+    // FIX: Calculate eligible purchases after products are loaded
+    await updateEligiblePurchases()
     
   } catch (err) {
     console.error('Failed to load album:', err)
@@ -284,6 +281,24 @@ const loadAlbum = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+// FIX: Add function to update eligible purchases
+const updateEligiblePurchases = async () => {
+  const purchases = purchasesForThisAlbum.value
+  const eligible = []
+  
+  for (const p of purchases) {
+    const hasReviewed = await hasUserReviewedProduct(p.product_id)
+    if (!hasReviewed) {
+      eligible.push({
+        ...p,
+        key: `${p.order_id}_${p.product_id}`
+      })
+    }
+  }
+  
+  eligiblePurchases.value = eligible
 }
 
 onMounted(() => {
@@ -302,18 +317,18 @@ const getProductImage = (product) => {
         ? JSON.parse(product.image_urls) 
         : product.image_urls;
       if (images && images.length > 0) {
-        return images[0]; // Return the first uploaded photo
+        return images[0];
       }
     } catch (e) {
       console.error('Error parsing product images:', e);
     }
   }
-  return albumImage.value; // Fallback to album cover
+  return albumImage.value;
 };
 
 // Handle image load error
 const handleImageError = (e) => {
-  e.target.src = albumImage.value; // Fallback to album cover on error
+  e.target.src = albumImage.value;
 };
 
 const formatTime = (iso) => {
@@ -348,7 +363,7 @@ const submitReview = async () => {
 
   submitting.value = true
   try {
-    const res = addAlbumReview({
+    const res = await addAlbumReview({
       album_id: albumId.value,
       product_id: purchase.product_id,
       rating: rating.value,
@@ -356,6 +371,7 @@ const submitReview = async () => {
       purchased_at: purchase.purchased_at,
       sku_condition: purchase.condition
     })
+    
     if (!res.success) {
       alert(res.message || '提交失败')
       return
@@ -366,7 +382,13 @@ const submitReview = async () => {
     rating.value = 0
     comment.value = ''
 
-    reviews.value = getAlbumReviews(albumId.value)
+    // reload reviews
+    const fetchedReviews = await getAlbumReviews(albumId.value)
+    reviews.value = fetchedReviews
+    
+    // update eligible purchases
+    await updateEligiblePurchases()
+    
   } finally {
     submitting.value = false
   }

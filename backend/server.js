@@ -1217,6 +1217,148 @@ app.post('/api/orders/:id/pay', authenticateToken, (req, res) => {
   );
 });
 
+// ==================== REVIEWS API ====================
+
+// Get reviews for an album
+app.get('/api/reviews/album/:albumId', (req, res) => {
+  const albumId = req.params.albumId;
+  
+  db.all(
+    `SELECT 
+      r.review_id,
+      r.rating,
+      r.comment,
+      r.created_at,
+      r.merchant_reply,
+      r.reply_at,
+      u.username,
+      u.user_id,
+      p.condition as sku_condition,
+      p.product_id,
+      o.created_at as purchased_at
+    FROM Reviews r
+    JOIN Users u ON r.user_id = u.user_id
+    JOIN Products p ON r.product_id = p.product_id
+    JOIN Albums a ON p.album_id = a.album_id
+    LEFT JOIN Order_Items oi ON oi.product_id = r.product_id
+    LEFT JOIN Orders o ON oi.order_id = o.order_id AND o.user_id = r.user_id
+    WHERE a.album_id = ?
+    ORDER BY r.created_at DESC`,
+    [albumId],
+    (err, reviews) => {
+      if (err) {
+        console.error('Error fetching reviews:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      // Parse merchant_reply JSON if it exists and send parsed
+      const parsedReviews = reviews.map(review => ({
+        ...review,
+        merchant_reply: review.merchant_reply ? JSON.parse(review.merchant_reply) : null
+      }));
+      
+      res.json(parsedReviews);
+    }
+  );
+});
+
+// Check if user has reviewed a product
+app.get('/api/reviews/user/product/:productId', authenticateToken, (req, res) => {
+  const productId = req.params.productId;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT review_id FROM Reviews WHERE user_id = ? AND product_id = ?',
+    [userId, productId],
+    (err, review) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ hasReviewed: !!review });
+    }
+  );
+});
+
+// Create a new review
+app.post('/api/reviews', authenticateToken, (req, res) => {
+  const { product_id, rating, comment } = req.body;
+  const userId = req.user.userId;
+  
+  if (!product_id || !rating || !comment) {
+    return res.status(400).json({ error: 'Product ID, rating, and comment are required' });
+  }
+  
+  if (rating < 1 || rating > 5) {
+    return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+  }
+  
+  // Check if user has purchased this product
+  db.get(
+    `SELECT oi.order_item_id 
+    FROM Order_Items oi
+    JOIN Orders o ON oi.order_id = o.order_id
+    WHERE oi.product_id = ? AND o.user_id = ? AND o.status = 'completed'`,
+    [product_id, userId],
+    (err, purchase) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      if (!purchase) {
+        return res.status(403).json({ error: 'You can only review products you have purchased and received' });
+      }
+      
+      // Check if already reviewed
+      db.get(
+        'SELECT review_id FROM Reviews WHERE user_id = ? AND product_id = ?',
+        [userId, product_id],
+        (err, existing) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          
+          if (existing) {
+            return res.status(400).json({ error: 'You have already reviewed this product' });
+          }
+          
+          // Insert review
+          db.run(
+            `INSERT INTO Reviews (user_id, product_id, rating, comment, created_at)
+             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            [userId, product_id, rating, comment],
+            function(err) {
+              if (err) {
+                console.error('Error inserting review:', err);
+                return res.status(500).json({ error: err.message });
+              }
+              
+              // Get the inserted review with user info
+              db.get(
+                `SELECT 
+                  r.review_id,
+                  r.rating,
+                  r.comment,
+                  r.created_at,
+                  u.username
+                FROM Reviews r
+                JOIN Users u ON r.user_id = u.user_id
+                WHERE r.review_id = ?`,
+                [this.lastID],
+                (err, review) => {
+                  if (err) {
+                    return res.status(500).json({ error: err.message });
+                  }
+                  res.status(201).json({ success: true, review });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
 // ==================== FORUM API ====================
 app.get('/api/forum/messages', (req, res) => {
     const { limit = 10 } = req.query;
