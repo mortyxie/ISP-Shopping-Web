@@ -1274,22 +1274,7 @@ app.get('/api/reviews/album/:albumId/average', (req, res) => {
   );
 });
 
-// Check if user has reviewed a specific order
-app.get('/api/reviews/user/order/:orderId', authenticateToken, (req, res) => {
-  const orderId = req.params.orderId;
-  const userId = req.user.userId;
-  
-  db.get(
-    'SELECT review_id FROM Reviews WHERE order_id = ? AND user_id = ?',
-    [orderId, userId],
-    (err, review) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-      res.json({ hasReviewed: !!review });
-    }
-  );
-});
+
 
 // Create a new review
 app.post('/api/reviews', authenticateToken, (req, res) => {
@@ -1334,16 +1319,16 @@ app.post('/api/reviews', authenticateToken, (req, res) => {
           return res.status(403).json({ error: 'You can only review completed orders' });
         }
         
-        // Check if this order has already been reviewed
+        // Check if this specific product in this order has already been reviewed
         db.get(
-          `SELECT review_id FROM Reviews WHERE order_id = ?`,
-          [order_id],
+          `SELECT review_id FROM Reviews WHERE order_id = ? AND product_id = ?`,
+          [order_id, product_id],
           (err, existing) => {
             if (err) {
               return res.status(500).json({ error: err.message });
             }
             if (existing) {
-              return res.status(400).json({ error: 'You have already reviewed this order' });
+              return res.status(400).json({ error: 'You have already reviewed this product in this order' });
             }
             
             // Insert review
@@ -1371,6 +1356,53 @@ app.post('/api/reviews', authenticateToken, (req, res) => {
     );
   });
 });
+
+// Check which products in an order have been reviewed
+app.get('/api/reviews/user/order/:orderId', authenticateToken, (req, res) => {
+  const orderId = req.params.orderId;
+  const userId = req.user.userId;
+  
+  console.log('Fetching reviews for order:', orderId, 'user:', userId);
+  
+  // Get all reviews for this order to return which products were reviewed
+  db.all(
+    'SELECT product_id, review_id FROM Reviews WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, reviews) => {
+      if (err) {
+        console.error('Error fetching reviews:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      console.log('Found reviews:', reviews);
+      
+      // Return which products were reviewed
+      res.json({ 
+        hasReviewed: reviews.length > 0,
+        reviewedProducts: reviews.map(r => r.product_id)
+      });
+    }
+  );
+});
+
+// Check if user has reviewed a specific product in an order
+app.get('/api/reviews/user/order/:orderId/product/:productId', authenticateToken, (req, res) => {
+  const orderId = req.params.orderId;
+  const productId = req.params.productId;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT review_id FROM Reviews WHERE order_id = ? AND product_id = ? AND user_id = ?',
+    [orderId, productId, userId],
+    (err, review) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ hasReviewed: !!review });
+    }
+  );
+});
+
 // ==================== FORUM API ====================
 app.get('/api/forum/messages', (req, res) => {
     const { limit = 10 } = req.query;

@@ -27,7 +27,7 @@ export async function getAlbumAverageRating(albumId) {
   }
 }
 
-// Check if user has reviewed THIS SPECIFIC ORDER
+// Check if user has reviewed ANY product in this order (for backward compatibility)
 export async function hasUserReviewedOrder(orderId) {
   const user = getCurrentUser()
   if (!user?.id) return false
@@ -35,6 +35,52 @@ export async function hasUserReviewedOrder(orderId) {
   try {
     const token = localStorage.getItem('token')
     const response = await fetch(`/api/reviews/user/order/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      return data.hasReviewed || (data.reviewedProducts && data.reviewedProducts.length > 0)
+    }
+    return false
+  } catch (error) {
+    console.error('Failed to check review status:', error)
+    return false
+  }
+}
+
+// Check which products in an order have been reviewed
+export async function getReviewedProductsForOrder(orderId) {
+  const user = getCurrentUser()
+  if (!user?.id) return { reviewedProducts: [] }
+  
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/reviews/user/order/${orderId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    
+    console.log('API Response status:', response.status)
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Reviewed products data:', data)
+      return data
+    }
+    return { reviewedProducts: [] }
+  } catch (error) {
+    console.error('Failed to check review status:', error)
+    return { reviewedProducts: [] }
+  }
+}
+
+// Check if a specific product in an order has been reviewed
+export async function hasReviewedProduct(orderId, productId) {
+  const user = getCurrentUser()
+  if (!user?.id) return false
+  
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/reviews/user/order/${orderId}/product/${productId}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (response.ok) {

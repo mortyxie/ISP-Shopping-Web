@@ -105,6 +105,7 @@
                 <h3>{{ item.name }}</h3>
                 <p class="item-condition">{{ item.condition }}</p>
                 <p class="item-price">¥{{ item.price }} x {{ item.quantity }}</p>
+                <p class="item-id">Product ID: {{ item.id }}</p>
               </div>
               <div class="item-subtotal">
                 <span class="subtotal-label">{{ $t('orderDetail.subtotal') }}:</span>
@@ -130,68 +131,71 @@
           </div>
         </div>
 
-        <!-- Write Review Section - Updated -->
-        <div class="write-review-section" v-if="!isSellerView && order.status === 'completed' && !hasReviewed">
-          <h3>写评价</h3>
-          <div class="review-form">
-            <!-- Show product info directly (no dropdown) -->
-            <div class="product-info-box" v-if="order.items && order.items.length === 1">
-              <div class="product-image-small">
-                <img :src="order.items[0].image" :alt="order.items[0].name">
-              </div>
-              <div class="product-details">
-                <p class="product-name">{{ order.items[0].name }}</p>
-                <p class="product-condition">版本: {{ order.items[0].condition }}</p>
-              </div>
-            </div>
-            
-            <!-- If multiple products in one order, show them all (rare) -->
-            <div v-if="order.items && order.items.length > 1" class="multiple-products">
-              <p>此订单包含 {{ order.items.length }} 件商品，请分别为每个商品评价：</p>
-              <div v-for="item in order.items" :key="item.id" class="product-review-item">
-                <div class="product-info-simple">
-                  <span>{{ item.name }} - {{ item.condition }}</span>
+        <!-- Write Review Section - Show each product individually -->
+        <div class="write-review-section" v-if="!isSellerView && order.status === 'completed'">
+          <h3>{{ $t('orderDetail.review.title') }}</h3>
+          
+          <!-- Show each product individually - NEVER combine them -->
+          <div class="products-review-list">
+            <div v-for="item in order.items" :key="item.id" class="product-review-card">
+              <div class="product-info-box">
+                <div class="product-image-small">
+                  <img :src="item.image" :alt="item.name">
                 </div>
-                <div class="product-review-fields">
+                <div class="product-details">
+                  <p class="product-name">{{ item.name }}</p>
+                  <p class="product-condition">{{ $t('orderDetail.review.version') }}: {{ item.condition }}</p>
+                  <p class="product-id-text">Product ID: {{ item.id }}</p>
+                </div>
+              </div>
+              
+              <!-- If product is already reviewed -->
+              <div v-if="reviewedProducts.has(item.id)" class="already-reviewed-box">
+                <div class="already-reviewed-message">
+                  <p>✅ {{ $t('orderDetail.review.alreadyReviewed') }}</p>
+                  <button class="btn-view-review" @click="goToProductReviewPage(item.id, item.album_id)">
+                    {{ $t('orderDetail.review.viewReview') }}
+                  </button>
+                </div>
+              </div>
+              
+              <!-- If product is not reviewed yet -->
+              <div v-else class="review-input-area">
+                <div class="form-group">
+                  <label>{{ $t('orderDetail.review.rating') }}</label>
                   <div class="star-rating">
-                    <button v-for="i in 5" :key="i" class="star-btn" :class="{ active: i <= ratings[item.id] }" @click="ratings[item.id] = i">★</button>
+                    <button 
+                      v-for="i in 5" 
+                      :key="i" 
+                      class="star-btn" 
+                      :class="{ active: i <= productRatings[item.id] }" 
+                      @click="productRatings[item.id] = i"
+                    >
+                      ★
+                    </button>
                   </div>
-                  <textarea v-model="comments[item.id]" rows="2" placeholder="评价内容..." class="form-control small"></textarea>
                 </div>
-              </div>
-            </div>
-            
-            <!-- Single product review form -->
-            <div v-if="order.items && order.items.length === 1" class="single-product-review">
-              <div class="form-group">
-                <label>评分</label>
-                <div class="star-rating">
-                  <button v-for="i in 5" :key="i" class="star-btn" :class="{ active: i <= rating }" @click="rating = i">★</button>
+                
+                <div class="form-group">
+                  <label>{{ $t('orderDetail.review.comment') }}</label>
+                  <textarea 
+                    v-model="productComments[item.id]" 
+                    rows="4" 
+                    :placeholder="$t('orderDetail.review.commentPlaceholder')" 
+                    class="form-control"
+                  ></textarea>
                 </div>
+                
+                <button 
+                  class="btn-submit-review" 
+                  :disabled="submitting || productRatings[item.id] === 0 || !productComments[item.id]?.trim()"
+                  @click="submitReviewForProduct(item.id)"
+                >
+                  {{ submitting ? $t('orderDetail.review.submitting') : $t('orderDetail.review.submit') }}
+                </button>
               </div>
-              <div class="form-group">
-                <label>评价内容</label>
-                <textarea v-model="comment" rows="4" placeholder="分享你的使用感受..." class="form-control"></textarea>
-              </div>
-              <button class="btn-submit-review" :disabled="submitting" @click="submitReviewForOrder">提交评价</button>
-            </div>
-            
-            <!-- Submit all reviews for multiple products -->
-            <div v-if="order.items && order.items.length > 1" class="multiple-review-actions">
-              <button class="btn-submit-review" :disabled="submitting" @click="submitMultipleReviews">提交所有评价</button>
             </div>
           </div>
-        </div>
-
-        <div v-else-if="!isSellerView && order.status === 'completed' && hasReviewed" class="already-reviewed">
-          <p>✅ 你已经评价过这个订单了，感谢你的分享！</p>
-          <button class="btn-view-reviews" @click="goToAlbumReviewPage" v-if="order.items && order.items.length">查看评价</button>
-        </div>
-
-        <!-- After submitting successfully, show success message with button -->
-        <div v-if="reviewSubmitted && !hasReviewed && order.status === 'completed'" class="review-success">
-          <p>✅ 评价提交成功！感谢你的分享！</p>
-          <button class="btn-view-reviews" @click="goToAlbumReviewPage">查看我的评价</button>
         </div>
 
         <!-- Action Buttons -->
@@ -229,37 +233,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { isAuthenticated } from '../services/authService'
-import { hasUserReviewedOrder, submitReview } from '../services/reviewService'
+import { submitReview } from '../services/reviewService'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
+// Order state
 const order = ref(null)
 const isLoading = ref(true)
 const error = ref(null)
 const isSellerView = ref(false)
 
 // Review state
-const selectedProductId = ref(null)
-const rating = ref(0)
-const comment = ref('')
 const submitting = ref(false)
-const hasReviewed = ref(false)
-const reviewSubmitted = ref(false)
-
-// For multiple products in one order
-const ratings = ref({})
-const comments = ref({})
+const reviewedProducts = ref(new Set())
+const productRatings = reactive({})
+const productComments = reactive({})
 
 const formatDateTime = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -305,12 +304,110 @@ const loadOrder = async () => {
   }
 }
 
-// Check if already reviewed
+// Check which products have been reviewed
 const checkReviewStatus = async () => {
-  if (order.value && order.value.status === 'completed') {
-    const result = await hasUserReviewedOrder(order.value.id)
-    hasReviewed.value = result
-    reviewSubmitted.value = false
+  if (order.value && order.value.status === 'completed' && order.value.items) {
+    try {
+      const token = localStorage.getItem('token')
+      const orderId = order.value.id
+      
+      console.log('Fetching reviews for order:', orderId)
+      
+      const response = await fetch(`/api/reviews/user/order/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Reviews data received:', data)
+        
+        reviewedProducts.value.clear()
+        
+        if (data.reviewedProducts && Array.isArray(data.reviewedProducts)) {
+          data.reviewedProducts.forEach(productId => {
+            console.log('Adding product to reviewed set:', productId)
+            reviewedProducts.value.add(parseInt(productId))
+          })
+        }
+        
+        console.log('Final reviewed products Set:', Array.from(reviewedProducts.value))
+        
+        // Initialize ratings and comments for unreviewed products
+        if (order.value.items) {
+          order.value.items.forEach(item => {
+            if (!reviewedProducts.value.has(item.id)) {
+              productRatings[item.id] = 0
+              productComments[item.id] = ''
+            }
+          })
+        }
+      } else {
+        console.error('Failed to fetch reviews:', response.status)
+      }
+    } catch (error) {
+      console.error('Error checking review status:', error)
+    }
+  }
+}
+
+// Submit review for a specific product
+const submitReviewForProduct = async (productId) => {
+  if (productRatings[productId] === 0) {
+    alert(t('orderDetail.review.errors.noRating'))
+    return
+  }
+  if (!productComments[productId]?.trim()) {
+    alert(t('orderDetail.review.errors.noComment'))
+    return
+  }
+  
+  submitting.value = true
+  try {
+    const res = await submitReview(productId, order.value.id, productRatings[productId], productComments[productId].trim())
+    if (res.success) {
+      reviewedProducts.value.add(productId)
+      productRatings[productId] = 0
+      productComments[productId] = ''
+      alert(t('orderDetail.review.success.reviewSubmitted'))
+      await checkReviewStatus()
+    } else {
+      alert(res.message || t('orderDetail.review.errors.submitFailed'))
+    }
+  } catch (error) {
+    console.error('Failed to submit review:', error)
+    alert(t('orderDetail.review.errors.submitFailed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Go to album review page for a specific product
+const goToProductReviewPage = async (productId, albumId) => {
+  try {
+    // If we have album_id directly from the product, use it
+    if (albumId) {
+      router.push(`/album/${albumId}/reviews`)
+      return
+    }
+    
+    // Otherwise fetch the product to get album_id
+    const response = await fetch(`/api/products/${productId}`)
+    if (!response.ok) {
+      alert(t('orderDetail.review.errors.noAlbumFound'))
+      return
+    }
+    
+    const productData = await response.json()
+    console.log('Product data for review page:', productData)
+    
+    if (productData.album_id) {
+      router.push(`/album/${productData.album_id}/reviews`)
+    } else {
+      alert(t('orderDetail.review.errors.noAlbumFound'))
+    }
+  } catch (err) {
+    console.error('Failed to get product info:', err)
+    alert(t('orderDetail.review.errors.loadFailed'))
   }
 }
 
@@ -318,7 +415,7 @@ const checkReviewStatus = async () => {
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
+  return date.toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -330,150 +427,18 @@ const formatDate = (dateString) => {
 // Get status text
 const getStatusText = (status) => {
   const statusMap = {
-    'pending': 'Pending Payment',
-    'paid': 'Paid',
-    'shipped': 'Shipped',
-    'completed': 'Completed',
-    'cancelled': 'Cancelled'
+    'pending': t('orders.status.pending'),
+    'paid': t('orders.status.paid'),
+    'shipped': t('orders.status.shipped'),
+    'completed': t('orders.status.completed'),
+    'cancelled': t('orders.status.cancelled')
   }
   return statusMap[status] || status
 }
 
-// In goToAlbumReviewPage, add console.log
-const goToAlbumReviewPage = () => {
-  if (order.value.items && order.value.items.length > 0) {
-    const product = order.value.items[0]
-    console.log('Product from order:', product) // Check if album_id exists
-    
-    if (product.album_id) {
-      router.push(`/album/${product.album_id}/reviews`)
-    } else {
-      fetch(`/api/products/${product.id}`)
-        .then(res => res.json())
-        .then(productData => {
-          console.log('Product data from API:', productData) // Check what comes back
-          if (productData.album_id) {
-            router.push(`/album/${productData.album_id}/reviews`)
-          } else {
-            alert('无法找到对应的专辑')
-          }
-        })
-        .catch(err => {
-          console.error('Failed to get product info:', err)
-          alert('无法跳转到评价页面')
-        })
-    }
-  }
-}
-
-// Submit review for order (one review per order)
-const submitReviewForOrder = async () => {
-  if (!order.value.items || order.value.items.length === 0) {
-    alert('没有可评价的商品')
-    return
-  }
-  
-  // For single product order
-  if (order.value.items.length === 1) {
-    const product = order.value.items[0]
-    console.log('PRODUCT FROM ORDER:', product)
-    console.log('product.id:', product.id)
-    
-    if (rating.value === 0) {
-      alert('请选择评分')
-      return
-    }
-    if (!comment.value.trim()) {
-      alert('请填写评价内容')
-      return
-    }
-    
-    submitting.value = true
-    try {
-      const res = await submitReview(product.id, order.value.id, rating.value, comment.value.trim())
-      if (res.success) {
-        reviewSubmitted.value = true
-        hasReviewed.value = true
-        rating.value = 0
-        comment.value = ''
-        
-        // Redirect to album review page
-        fetch(`/api/products/${product.id}`)
-          .then(res => res.json())
-          .then(productData => {
-            if (productData.album_id) {
-              setTimeout(() => {
-                if (confirm('评价提交成功！是否查看评价页面？')) {
-                  router.push(`/album/${productData.album_id}/reviews`)
-                }
-              }, 500)
-            }
-          })
-      } else {
-        alert(res.message)
-      }
-    } catch (error) {
-      console.error('Failed to submit review:', error)
-      alert('提交失败，请重试')
-    } finally {
-      submitting.value = false
-    }
-  }
-}
-
-// Submit multiple reviews for products in same order
-const submitMultipleReviews = async () => {
-  if (!order.value.items || order.value.items.length === 0) return
-  
-  let hasError = false
-  let submittedCount = 0
-  
-  submitting.value = true
-  
-  for (const item of order.value.items) {
-    const itemRating = ratings.value[item.id] || 0
-    const itemComment = comments.value[item.id] || ''
-    
-    if (itemRating === 0) {
-      alert(`请为 "${item.name} - ${item.condition}" 选择评分`)
-      hasError = true
-      break
-    }
-    if (!itemComment.trim()) {
-      alert(`请为 "${item.name} - ${item.condition}" 填写评价内容`)
-      hasError = true
-      break
-    }
-    
-    try {
-      const res = await submitReview(item.id, order.value.id, itemRating, itemComment.trim())
-      if (res.success) {
-        submittedCount++
-      } else {
-        alert(`评价 "${item.name}" 失败: ${res.message}`)
-        hasError = true
-        break
-      }
-    } catch (error) {
-      alert(`评价 "${item.name}" 失败`)
-      hasError = true
-      break
-    }
-  }
-  
-  if (!hasError && submittedCount > 0) {
-    reviewSubmitted.value = true
-    hasReviewed.value = true
-    ratings.value = {}
-    comments.value = {}
-  }
-  
-  submitting.value = false
-}
-
 // Pay order
 const payOrder = async () => {
-  if (!confirm('Proceed to payment?')) return
+  if (!confirm(t('orderDetail.confirmPayment'))) return
   
   try {
     const token = localStorage.getItem('token')
@@ -487,20 +452,20 @@ const payOrder = async () => {
     const data = await response.json()
     
     if (response.ok) {
-      alert('✅ Payment successful! Your order has been confirmed.')
+      alert(t('orderDetail.paymentSuccess'))
       await loadOrder()
     } else {
-      alert('❌ ' + (data.error || 'Payment failed'))
+      alert(t('orderDetail.paymentFailed') + (data.error || ''))
     }
   } catch (err) {
     console.error('Payment error:', err)
-    alert('❌ Payment failed. Please try again.')
+    alert(t('orderDetail.paymentFailed'))
   }
 }
 
 // Cancel order
 const cancelOrder = async () => {
-  if (!confirm('Are you sure you want to cancel this order?')) return
+  if (!confirm(t('orderDetail.confirmCancel'))) return
   
   try {
     const token = localStorage.getItem('token')
@@ -512,21 +477,21 @@ const cancelOrder = async () => {
     })
     
     if (response.ok) {
-      alert('Order cancelled successfully')
+      alert(t('orderDetail.cancelSuccess'))
       await loadOrder()
     } else {
       const data = await response.json()
-      alert(data.error || 'Failed to cancel order')
+      alert(data.error || t('orderDetail.cancelFailed'))
     }
   } catch (err) {
     console.error('Failed to cancel order:', err)
-    alert('Failed to cancel order')
+    alert(t('orderDetail.cancelFailed'))
   }
 }
 
 // Confirm receipt
 const confirmReceipt = async () => {
-  if (!confirm('Have you received your order?')) return
+  if (!confirm(t('orderDetail.confirmReceiptMsg'))) return
   
   try {
     const token = localStorage.getItem('token')
@@ -538,15 +503,15 @@ const confirmReceipt = async () => {
     })
     
     if (response.ok) {
-      alert('Thank you for confirming! Order completed.')
+      alert(t('orderDetail.confirmSuccess'))
       await loadOrder()
     } else {
       const data = await response.json()
-      alert(data.error || 'Failed to confirm receipt')
+      alert(data.error || t('orderDetail.confirmFailed'))
     }
   } catch (err) {
     console.error('Failed to confirm receipt:', err)
-    alert('Failed to confirm receipt')
+    alert(t('orderDetail.confirmFailed'))
   }
 }
 
@@ -1187,6 +1152,312 @@ onMounted(() => {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   font-family: monospace;
+}
+
+.product-selector {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.selector-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
+}
+
+.product-select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  background: white;
+  cursor: pointer;
+}
+
+.product-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.review-progress {
+  margin-top: var(--spacing-sm);
+  text-align: right;
+}
+
+.progress-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Review Input Area */
+.review-input-area {
+  margin-top: var(--spacing-lg);
+}
+
+/* Already Reviewed Box */
+.already-reviewed-box {
+  margin-top: var(--spacing-lg);
+}
+
+.already-reviewed-message {
+  text-align: center;
+  padding: var(--spacing-lg);
+  background: #d4edda;
+  border-radius: var(--border-radius-md);
+  margin-top: var(--spacing-md);
+}
+
+.already-reviewed-message p {
+  margin-bottom: var(--spacing-md);
+  color: #155724;
+}
+
+.btn-view-review {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s;
+}
+
+.btn-view-review:hover {
+  background: var(--color-primary-dark);
+}
+
+/* Reviewed Products List */
+.reviewed-products-list {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid var(--color-border);
+}
+
+.reviewed-products-list h4 {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.reviewed-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.reviewed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.reviewed-item span {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.btn-link:hover {
+  color: var(--color-primary-dark);
+}
+
+/* All Reviewed Message */
+.all-reviewed-message {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background: #d4edda;
+  border-radius: var(--border-radius-lg);
+  color: #155724;
+}
+
+.all-reviewed-message p {
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-base);
+}
+
+/* Review Actions */
+.review-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: var(--spacing-md);
+  background: var(--color-bg-light);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  transition: all var(--transition-base);
+}
+
+.btn-cancel:hover {
+  background: var(--color-border);
+}
+
+/* Product Info Box */
+.product-info-box {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.product-image-small {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.product-image-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-details {
+  flex: 1;
+}
+
+.product-name {
+  font-weight: bold;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.product-condition {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  background: white;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Star Rating */
+.star-rating {
+  display: flex;
+  gap: 8px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.star-btn.active {
+  color: #f59e0b;
+}
+
+.star-btn:hover {
+  color: #f59e0b;
+}
+
+.btn-submit-review {
+  flex: 1;
+  padding: var(--spacing-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.btn-submit-review:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn-submit-review:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.item-id {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+  font-family: monospace;
+}
+
+.product-id-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+  font-family: monospace;
+}
+
+.products-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.product-review-card {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--color-border);
+}
+
+.product-review-card .product-info-box {
+  margin-bottom: var(--spacing-lg);
 }
 
 /* Responsive */
