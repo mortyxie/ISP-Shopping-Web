@@ -69,34 +69,60 @@
         </div>
       </section>
 
-      <!-- 第二板块：Featured Albums -->
+      <!-- 第二板块：Featured Albums with Pagination -->
       <section class="albums-section">
         <div class="container">
           <h2 class="section-title">{{ $t('home.featuredAlbums') }}</h2>
           
-          <div v-if="albums.length === 0" class="no-albums">
+          <div v-if="allAlbums.length === 0" class="no-albums">
             <p>{{ $t('home.noAlbums') }}</p>
           </div>
           
-          <div v-else class="albums-grid">
-            <div
-              v-for="album in albums"
-              :key="album.id"
-              class="album-card"
-              @click="$router.push(`/album/${album.id}`)"
-            >
-              <div class="album-image">
-                <img 
-                  :src="album.image || getRecordPlaceholder(album.id)" 
-                  :alt="album.title"
-                  @error="handleImageError"
-                />
+          <div v-else>
+            <!-- Albums Grid -->
+            <div class="albums-grid">
+              <div
+                v-for="album in paginatedAlbums"
+                :key="album.id"
+                class="album-card"
+                @click="$router.push(`/album/${album.id}`)"
+              >
+                <div class="album-image">
+                  <img 
+                    :src="album.image || getRecordPlaceholder(album.id)" 
+                    :alt="album.title"
+                    @error="handleImageError"
+                  />
+                </div>
+                <div class="album-info">
+                  <p class="album-title">{{ album.title }}</p>
+                  <p class="album-artist">{{ album.artist }}</p>
+                  <p class="album-count">{{ album.product_count }} {{ $t('albumDetail.availableCopies') }}</p>
+                </div>
               </div>
-              <div class="album-info">
-                <p class="album-title">{{ album.title }}</p>
-                <p class="album-artist">{{ album.artist }}</p>
-                <p class="album-count">{{ album.product_count }} {{ $t('albumDetail.availableCopies') }}</p>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="totalPages > 1" class="pagination-controls">
+              <button 
+                class="page-btn prev-btn" 
+                @click="previousPage"
+                :disabled="currentPage === 1"
+              >
+                ← {{ $t('home.previous') }}
+              </button>
+              
+              <div class="page-info">
+                {{ $t('home.page') }} {{ currentPage }} / {{ totalPages }}
               </div>
+              
+              <button 
+                class="page-btn next-btn" 
+                @click="nextPage"
+                :disabled="currentPage === totalPages"
+              >
+                {{ $t('home.next') }} →
+              </button>
             </div>
           </div>
         </div>
@@ -106,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getAlbums } from '../services/albumService'
 import { getForumMessages } from '../services/forumService'
@@ -116,9 +142,41 @@ const { t } = useI18n()
 // State
 const isLoading = ref(true)
 const error = ref(null)
-const albums = ref([])
+const allAlbums = ref([])
 const forumMessages = ref([])
 const isMobile = ref(false)
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 8
+
+// Computed: Paginated albums
+const paginatedAlbums = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return allAlbums.value.slice(start, end)
+})
+
+// Computed: Total pages
+const totalPages = computed(() => {
+  return Math.ceil(allAlbums.value.length / itemsPerPage)
+})
+
+// Pagination methods
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    // Scroll to top of albums section
+    document.querySelector('.albums-section')?.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    document.querySelector('.albums-section')?.scrollIntoView({ behavior: 'smooth' })
+  }
+}
 
 // Load data from database
 const loadData = async () => {
@@ -131,7 +189,7 @@ const loadData = async () => {
     console.log('✅ Albums loaded:', albumsData)
     
     if (albumsData && albumsData.length > 0) {
-      albums.value = albumsData.map(album => ({
+      allAlbums.value = albumsData.map(album => ({
         id: album.album_id,
         title: album.title,
         artist: album.artist,
@@ -140,7 +198,7 @@ const loadData = async () => {
       }))
     } else {
       console.log('⚠️ No albums found in database')
-      albums.value = []
+      allAlbums.value = []
     }
 
     console.log('💬 Loading forum messages...')
@@ -636,6 +694,44 @@ onUnmounted(() => {
   font-size: var(--font-size-sm);
   color: var(--color-primary);
   margin: 0;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xxl);
+  padding: var(--spacing-lg);
+}
+
+.page-btn {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  transition: all var(--transition-base);
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
 /* 响应式设计 */

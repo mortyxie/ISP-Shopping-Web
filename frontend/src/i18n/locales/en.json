@@ -30,7 +30,10 @@
     "hoursAgo": "{count} hour ago | {count} hours ago",
     "daysAgo": "{count} day ago | {count} days ago",
     "noMessages": "No messages yet",
-    "anonymous": "Anonymous User"
+    "anonymous": "Anonymous User",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page"
   },
   "profile": {
     "title": "My Profile",
@@ -426,7 +429,10 @@
     "loadMore": "Load More",
     "loading": "Loading...",
     "foundAlbums": "Found {count} albums",
-    "products": "items available"
+    "products": "items available",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page"
   },
   "orders": {
     "title": "My Orders",

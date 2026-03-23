@@ -30,7 +30,10 @@
     "hoursAgo": "{count}小時前",
     "daysAgo": "{count}天前",
     "noMessages": "暫無留言",
-    "anonymous": "匿名用戶"
+    "anonymous": "匿名用戶",
+    "previous": "上一頁",
+    "next": "下一頁",
+    "page": "第"
   },
   "profile": {
     "title": "個人中心",
@@ -429,7 +432,10 @@
     "loadMore": "載入更多",
     "loading": "載入中...",
     "foundAlbums": "找到 {count} 張專輯",
-    "products": "件商品"
+    "products": "件商品",
+    "previous": "上一頁",
+    "next": "下一頁",
+    "page": "第"
   },
   "orders": {
     "title": "我的訂單",
