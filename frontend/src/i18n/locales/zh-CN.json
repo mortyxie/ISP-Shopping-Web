@@ -15,6 +15,7 @@
       "home": "首页",
       "category": "分类浏览",
       "forum": "论坛",
+      "sellerDashboard": "卖家中心",
       "help": "帮助中心",
       "about": "关于我们"
     }
@@ -569,6 +570,7 @@
     "title": "商家端",
     "notSeller": "您不是商家",
     "pleaseLogin": "请登录并使用商家账号访问",
+    "id": "ID",
     "noPermission": "访问被拒绝",
     "requireSeller": "需要商家权限才能访问此页面",
     "welcome": "欢迎回来，{username}",

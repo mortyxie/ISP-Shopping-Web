@@ -15,6 +15,7 @@
       "home": "Home",
       "category": "Category",
       "forum": "Forum",
+      "sellerDashboard": "Seller Dashboard",
       "help": "Help",
       "about": "About"
     }
@@ -566,6 +567,7 @@
     "title": "Seller Dashboard",
     "notSeller": "You are not a seller",
     "pleaseLogin": "Please login with a seller account",
+    "id": "ID",
     "noPermission": "Access denied",
     "requireSeller": "Seller permission required",
     "welcome": "Welcome back, {username}",

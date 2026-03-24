@@ -72,9 +72,9 @@
           <span class="action-text">{{ username || $t('header.user') }}</span>
           <div class="user-dropdown" v-if="showUserMenu">
             <div class="dropdown-item" @click="$router.push('/profile')">{{ $t('header.profile') }}</div>
-            <div class="dropdown-item" v-if="!isSeller "@click="$router.push('/addresses')">{{ $t('header.addresses') }}</div>
+            <div class="dropdown-item" v-if="!isSeller" @click="$router.push('/addresses')">{{ $t('header.addresses') }}</div>
             <div class="dropdown-item" v-if="!isSeller" @click="$router.push('/wishlist')">{{ $t('header.wishlist') }}</div>
-            <div class="dropdown-item" v-if="isSeller" @click="$router.push('/seller')">Seller Dashboard</div>
+            <div class="dropdown-item" v-if="isSeller" @click="$router.push('/seller')">{{ $t('header.nav.sellerDashboard') }}</div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" @click="handleLogout">{{ $t('header.logout') }}</div>
           </div>
@@ -90,7 +90,7 @@
           <router-link to="/category" class="nav-item">{{ $t('header.nav.category') }}</router-link>
           <router-link to="/forum" class="nav-item">{{ $t('header.nav.forum') }}</router-link>
           <!-- Add this line for seller dashboard -->
-          <router-link v-if="isSeller" to="/seller" class="nav-item">Seller Dashboard</router-link>
+          <router-link v-if="isSeller" to="/seller" class="nav-item">{{ $t('header.nav.sellerDashboard') }}</router-link>
           <router-link to="/help" class="nav-item">{{ $t('header.nav.help') }}</router-link>
           <router-link to="/about" class="nav-item">{{ $t('header.nav.about') }}</router-link>
         </div>

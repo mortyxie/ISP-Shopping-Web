@@ -104,7 +104,7 @@
             <h4>{{ $t('seller.searchedProduct') }}</h4>
             <div class="product-summary">
               <div class="summary-item">
-                <strong>ID:</strong> {{ searchedProduct.product_id || searchedProduct.id }}
+                <strong>{{ $t('seller.id') }}:</strong> {{ searchedProduct.product_id || searchedProduct.id }}
               </div>
               <div class="summary-item">
                 <strong>{{ $t('seller.album') }}:</strong> {{ searchedProduct.album_title }}
