@@ -105,6 +105,7 @@
                 <h3>{{ item.name }}</h3>
                 <p class="item-condition">{{ item.condition }}</p>
                 <p class="item-price">¥{{ item.price }} x {{ item.quantity }}</p>
+                <p class="item-id">Product ID: {{ item.id }}</p>
               </div>
               <div class="item-subtotal">
                 <span class="subtotal-label">{{ $t('orderDetail.subtotal') }}:</span>
@@ -127,6 +128,73 @@
           <div class="summary-row total">
             <span>{{ $t('orderDetail.total') }}:</span>
             <span class="total-price">¥{{ (order.subtotal || 0) + (order.shipping_cost || 0) }}</span>
+          </div>
+        </div>
+
+        <!-- Write Review Section - Show each product individually -->
+        <div class="write-review-section" v-if="!isSellerView && order.status === 'completed'">
+          <h3>{{ $t('orderDetail.review.title') }}</h3>
+          
+          <!-- Show each product individually - NEVER combine them -->
+          <div class="products-review-list">
+            <div v-for="item in order.items" :key="item.id" class="product-review-card">
+              <div class="product-info-box">
+                <div class="product-image-small">
+                  <img :src="item.image" :alt="item.name">
+                </div>
+                <div class="product-details">
+                  <p class="product-name">{{ item.name }}</p>
+                  <p class="product-condition">{{ $t('orderDetail.review.version') }}: {{ item.condition }}</p>
+                  <p class="product-id-text">Product ID: {{ item.id }}</p>
+                </div>
+              </div>
+              
+              <!-- If product is already reviewed -->
+              <div v-if="reviewedProducts.has(item.id)" class="already-reviewed-box">
+                <div class="already-reviewed-message">
+                  <p>✅ {{ $t('orderDetail.review.alreadyReviewed') }}</p>
+                  <button class="btn-view-review" @click="goToProductReviewPage(item.id, item.album_id)">
+                    {{ $t('orderDetail.review.viewReview') }}
+                  </button>
+                </div>
+              </div>
+              
+              <!-- If product is not reviewed yet -->
+              <div v-else class="review-input-area">
+                <div class="form-group">
+                  <label>{{ $t('orderDetail.review.rating') }}</label>
+                  <div class="star-rating">
+                    <button 
+                      v-for="i in 5" 
+                      :key="i" 
+                      class="star-btn" 
+                      :class="{ active: i <= productRatings[item.id] }" 
+                      @click="productRatings[item.id] = i"
+                    >
+                      ★
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label>{{ $t('orderDetail.review.comment') }}</label>
+                  <textarea 
+                    v-model="productComments[item.id]" 
+                    rows="4" 
+                    :placeholder="$t('orderDetail.review.commentPlaceholder')" 
+                    class="form-control"
+                  ></textarea>
+                </div>
+                
+                <button 
+                  class="btn-submit-review" 
+                  :disabled="submitting || productRatings[item.id] === 0 || !productComments[item.id]?.trim()"
+                  @click="submitReviewForProduct(item.id)"
+                >
+                  {{ submitting ? $t('orderDetail.review.submitting') : $t('orderDetail.review.submit') }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -165,26 +233,32 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { isAuthenticated } from '../services/authService'
+import { submitReview } from '../services/reviewService'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
+// Order state
 const order = ref(null)
 const isLoading = ref(true)
 const error = ref(null)
 const isSellerView = ref(false)
 
+// Review state
+const submitting = ref(false)
+const reviewedProducts = ref(new Set())
+const productRatings = reactive({})
+const productComments = reactive({})
 
-// ADD THIS method
 const formatDateTime = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -201,9 +275,8 @@ const loadOrder = async () => {
   try {
     const orderId = route.params.id
     const token = localStorage.getItem('token')
-    const isSeller = route.query.seller === 'true'  // Renamed to isSeller
+    const isSeller = route.query.seller === 'true'
     
-    // Use different endpoints for seller vs user
     const endpoint = isSeller 
       ? `/api/seller/orders/${orderId}` 
       : `/api/orders/${orderId}`
@@ -219,9 +292,9 @@ const loadOrder = async () => {
     }
     
     order.value = await response.json()
+    isSellerView.value = isSeller
     
-    // Store whether this is seller view - use different variable name
-    isSellerView.value = isSeller  // Fixed: using different names
+    await checkReviewStatus()
     
   } catch (err) {
     console.error('Failed to load order:', err)
@@ -231,11 +304,118 @@ const loadOrder = async () => {
   }
 }
 
+// Check which products have been reviewed
+const checkReviewStatus = async () => {
+  if (order.value && order.value.status === 'completed' && order.value.items) {
+    try {
+      const token = localStorage.getItem('token')
+      const orderId = order.value.id
+      
+      console.log('Fetching reviews for order:', orderId)
+      
+      const response = await fetch(`/api/reviews/user/order/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Reviews data received:', data)
+        
+        reviewedProducts.value.clear()
+        
+        if (data.reviewedProducts && Array.isArray(data.reviewedProducts)) {
+          data.reviewedProducts.forEach(productId => {
+            console.log('Adding product to reviewed set:', productId)
+            reviewedProducts.value.add(parseInt(productId))
+          })
+        }
+        
+        console.log('Final reviewed products Set:', Array.from(reviewedProducts.value))
+        
+        // Initialize ratings and comments for unreviewed products
+        if (order.value.items) {
+          order.value.items.forEach(item => {
+            if (!reviewedProducts.value.has(item.id)) {
+              productRatings[item.id] = 0
+              productComments[item.id] = ''
+            }
+          })
+        }
+      } else {
+        console.error('Failed to fetch reviews:', response.status)
+      }
+    } catch (error) {
+      console.error('Error checking review status:', error)
+    }
+  }
+}
+
+// Submit review for a specific product
+const submitReviewForProduct = async (productId) => {
+  if (productRatings[productId] === 0) {
+    alert(t('orderDetail.review.errors.noRating'))
+    return
+  }
+  if (!productComments[productId]?.trim()) {
+    alert(t('orderDetail.review.errors.noComment'))
+    return
+  }
+  
+  submitting.value = true
+  try {
+    const res = await submitReview(productId, order.value.id, productRatings[productId], productComments[productId].trim())
+    if (res.success) {
+      reviewedProducts.value.add(productId)
+      productRatings[productId] = 0
+      productComments[productId] = ''
+      alert(t('orderDetail.review.success.reviewSubmitted'))
+      await checkReviewStatus()
+    } else {
+      alert(res.message || t('orderDetail.review.errors.submitFailed'))
+    }
+  } catch (error) {
+    console.error('Failed to submit review:', error)
+    alert(t('orderDetail.review.errors.submitFailed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+// Go to album review page for a specific product
+const goToProductReviewPage = async (productId, albumId) => {
+  try {
+    // If we have album_id directly from the product, use it
+    if (albumId) {
+      router.push(`/album/${albumId}/reviews`)
+      return
+    }
+    
+    // Otherwise fetch the product to get album_id
+    const response = await fetch(`/api/products/${productId}`)
+    if (!response.ok) {
+      alert(t('orderDetail.review.errors.noAlbumFound'))
+      return
+    }
+    
+    const productData = await response.json()
+    console.log('Product data for review page:', productData)
+    
+    if (productData.album_id) {
+      router.push(`/album/${productData.album_id}/reviews`)
+    } else {
+      alert(t('orderDetail.review.errors.noAlbumFound'))
+    }
+  } catch (err) {
+    console.error('Failed to get product info:', err)
+    alert(t('orderDetail.review.errors.loadFailed'))
+  }
+}
+
 // Format date
 const formatDate = (dateString) => {
   if (!dateString) return '-'
   const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
+  return date.toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -247,18 +427,18 @@ const formatDate = (dateString) => {
 // Get status text
 const getStatusText = (status) => {
   const statusMap = {
-    'pending': 'Pending Payment',
-    'paid': 'Paid',
-    'shipped': 'Shipped',
-    'completed': 'Completed',
-    'cancelled': 'Cancelled'
+    'pending': t('orders.status.pending'),
+    'paid': t('orders.status.paid'),
+    'shipped': t('orders.status.shipped'),
+    'completed': t('orders.status.completed'),
+    'cancelled': t('orders.status.cancelled')
   }
   return statusMap[status] || status
 }
 
-// Pay order - always succeeds
+// Pay order
 const payOrder = async () => {
-  if (!confirm('Proceed to payment?')) return
+  if (!confirm(t('orderDetail.confirmPayment'))) return
   
   try {
     const token = localStorage.getItem('token')
@@ -272,20 +452,20 @@ const payOrder = async () => {
     const data = await response.json()
     
     if (response.ok) {
-      alert('✅ Payment successful! Your order has been confirmed.')
-      await loadOrder() // Reload order
+      alert(t('orderDetail.paymentSuccess'))
+      await loadOrder()
     } else {
-      alert('❌ ' + (data.error || 'Payment failed'))
+      alert(t('orderDetail.paymentFailed') + (data.error || ''))
     }
   } catch (err) {
     console.error('Payment error:', err)
-    alert('❌ Payment failed. Please try again.')
+    alert(t('orderDetail.paymentFailed'))
   }
 }
 
 // Cancel order
 const cancelOrder = async () => {
-  if (!confirm('Are you sure you want to cancel this order?')) return
+  if (!confirm(t('orderDetail.confirmCancel'))) return
   
   try {
     const token = localStorage.getItem('token')
@@ -297,21 +477,21 @@ const cancelOrder = async () => {
     })
     
     if (response.ok) {
-      alert('Order cancelled successfully')
+      alert(t('orderDetail.cancelSuccess'))
       await loadOrder()
     } else {
       const data = await response.json()
-      alert(data.error || 'Failed to cancel order')
+      alert(data.error || t('orderDetail.cancelFailed'))
     }
   } catch (err) {
     console.error('Failed to cancel order:', err)
-    alert('Failed to cancel order')
+    alert(t('orderDetail.cancelFailed'))
   }
 }
 
 // Confirm receipt
 const confirmReceipt = async () => {
-  if (!confirm('Have you received your order?')) return
+  if (!confirm(t('orderDetail.confirmReceiptMsg'))) return
   
   try {
     const token = localStorage.getItem('token')
@@ -323,19 +503,18 @@ const confirmReceipt = async () => {
     })
     
     if (response.ok) {
-      alert('Thank you for confirming! Order completed.')
+      alert(t('orderDetail.confirmSuccess'))
       await loadOrder()
     } else {
       const data = await response.json()
-      alert(data.error || 'Failed to confirm receipt')
+      alert(data.error || t('orderDetail.confirmFailed'))
     }
   } catch (err) {
     console.error('Failed to confirm receipt:', err)
-    alert('Failed to confirm receipt')
+    alert(t('orderDetail.confirmFailed'))
   }
 }
 
-// Check authentication
 onMounted(() => {
   if (!isAuthenticated()) {
     router.push('/login')
@@ -641,6 +820,200 @@ onMounted(() => {
   font-size: var(--font-size-xl);
 }
 
+/* Write Review Section */
+.write-review-section {
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  margin-top: var(--spacing-xl);
+}
+
+.write-review-section h3 {
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-primary);
+  font-size: var(--font-size-lg);
+}
+
+/* Product Info Box */
+.product-info-box {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.product-image-small {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.product-image-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-details {
+  flex: 1;
+}
+
+.product-name {
+  font-weight: bold;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.product-condition {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Multiple Products */
+.multiple-products {
+  margin-bottom: var(--spacing-lg);
+}
+
+.product-review-item {
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid var(--color-border);
+}
+
+.product-info-simple {
+  font-weight: bold;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-primary);
+}
+
+.product-review-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  background: white;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.form-control.small {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.star-rating {
+  display: flex;
+  gap: 8px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.star-btn.active {
+  color: #f59e0b;
+}
+
+.star-btn:hover {
+  color: #f59e0b;
+}
+
+.btn-submit-review {
+  width: 100%;
+  padding: var(--spacing-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  margin-top: var(--spacing-lg);
+  transition: background-color 0.2s;
+}
+
+.btn-submit-review:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn-submit-review:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.multiple-review-actions {
+  margin-top: var(--spacing-lg);
+}
+
+/* Already Reviewed */
+.already-reviewed {
+  background: #d4edda;
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+  text-align: center;
+  color: #155724;
+}
+
+/* Review Success */
+.review-success {
+  background: #d4edda;
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+  text-align: center;
+  color: #155724;
+}
+
+.btn-view-reviews {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s;
+}
+
+.btn-view-reviews:hover {
+  background: var(--color-primary-dark);
+}
+
 /* Action Buttons */
 .action-buttons {
   display: flex;
@@ -699,8 +1072,6 @@ onMounted(() => {
   font-size: var(--font-size-sm);
   border: 1px solid var(--color-primary-light);
 }
-
-/* ADD THESE STYLES */
 
 /* Timeline Card */
 .timeline-card {
@@ -783,6 +1154,312 @@ onMounted(() => {
   font-family: monospace;
 }
 
+.product-selector {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.selector-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
+}
+
+.product-select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  background: white;
+  cursor: pointer;
+}
+
+.product-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.review-progress {
+  margin-top: var(--spacing-sm);
+  text-align: right;
+}
+
+.progress-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Review Input Area */
+.review-input-area {
+  margin-top: var(--spacing-lg);
+}
+
+/* Already Reviewed Box */
+.already-reviewed-box {
+  margin-top: var(--spacing-lg);
+}
+
+.already-reviewed-message {
+  text-align: center;
+  padding: var(--spacing-lg);
+  background: #d4edda;
+  border-radius: var(--border-radius-md);
+  margin-top: var(--spacing-md);
+}
+
+.already-reviewed-message p {
+  margin-bottom: var(--spacing-md);
+  color: #155724;
+}
+
+.btn-view-review {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s;
+}
+
+.btn-view-review:hover {
+  background: var(--color-primary-dark);
+}
+
+/* Reviewed Products List */
+.reviewed-products-list {
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid var(--color-border);
+}
+
+.reviewed-products-list h4 {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.reviewed-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.reviewed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.reviewed-item span {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.btn-link:hover {
+  color: var(--color-primary-dark);
+}
+
+/* All Reviewed Message */
+.all-reviewed-message {
+  text-align: center;
+  padding: var(--spacing-xl);
+  background: #d4edda;
+  border-radius: var(--border-radius-lg);
+  color: #155724;
+}
+
+.all-reviewed-message p {
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-base);
+}
+
+/* Review Actions */
+.review-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: var(--spacing-md);
+  background: var(--color-bg-light);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  transition: all var(--transition-base);
+}
+
+.btn-cancel:hover {
+  background: var(--color-border);
+}
+
+/* Product Info Box */
+.product-info-box {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-bg);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--color-border);
+}
+
+.product-image-small {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.product-image-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-details {
+  flex: 1;
+}
+
+.product-name {
+  font-weight: bold;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.product-condition {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: bold;
+  color: var(--color-text-primary);
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-base);
+  background: white;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Star Rating */
+.star-rating {
+  display: flex;
+  gap: 8px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.star-btn.active {
+  color: #f59e0b;
+}
+
+.star-btn:hover {
+  color: #f59e0b;
+}
+
+.btn-submit-review {
+  flex: 1;
+  padding: var(--spacing-md);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.btn-submit-review:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn-submit-review:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.item-id {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+  font-family: monospace;
+}
+
+.product-id-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+  font-family: monospace;
+}
+
+.products-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.product-review-card {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--color-border);
+}
+
+.product-review-card .product-info-box {
+  margin-bottom: var(--spacing-lg);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .order-header {
@@ -819,6 +1496,12 @@ onMounted(() => {
   .shipping-details strong {
     min-width: auto;
     margin-bottom: var(--spacing-xs);
+  }
+  
+  .product-info-box {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
 }
 </style>

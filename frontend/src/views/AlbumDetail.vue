@@ -27,6 +27,20 @@
             <p class="album-artist">{{ albumArtist }}</p>
             <p class="album-year">{{ albumYear }} • {{ albumGenre }}</p>
             <p class="album-stats">{{ totalProducts }} {{ $t('albumDetail.availableCopies') }}</p>
+            
+            <!-- Rating Section -->
+            <div class="album-rating" v-if="reviewCount > 0">
+              <div class="stars">
+                <span v-for="i in 5" :key="i" class="star" :class="{ active: i <= Math.round(avgRating) }">★</span>
+              </div>
+              <span class="rating-count">{{ avgRating.toFixed(1) }} ({{ reviewCount }} {{ $t('albumDetail.reviews.summary.total') }})</span>
+            </div>
+            
+            <div class="album-actions">
+              <router-link :to="`/album/${albumId}/reviews`" class="view-reviews-btn">
+                {{ $t('albumDetail.viewAllReviews') }} ({{ reviewCount }})
+              </router-link>
+            </div>
           </div>
         </div>
 
@@ -44,15 +58,14 @@
         </div>
 
         <div v-else class="conditions-container">
-          <!-- Group products by condition -->
           <div
             v-for="condition in conditions"
             :key="condition"
             class="condition-group"
           >
             <div class="condition-header">
-              <h3 class="condition-title">{{ condition }}</h3>
-              <span class="condition-count">{{ getProductsByCondition(condition).length }} copies</span>
+              <h3 class="condition-title">{{ $t(`albumDetail.conditions.${condition.toLowerCase().replace(' ', '')}`) || condition }}</h3>
+              <span class="condition-count">{{ getProductsByCondition(condition).length }} {{ $t('albumDetail.conditions.copies') }}</span>
             </div>
 
             <div v-if="getProductsByCondition(condition).length === 0" class="no-items">
@@ -74,112 +87,10 @@
                   />
                 </div>
                 <div class="product-info">
-                  <p class="product-condition">{{ product.condition }}</p>
+                  <p class="product-condition">{{ $t(`albumDetail.conditions.${product.condition.toLowerCase().replace(' ', '')}`) || product.condition }}</p>
                   <p class="product-price">¥{{ product.price.toFixed(2) }}</p>
-                  <p class="product-description">{{ product.description || 'No description' }}</p>
+                  <p class="product-description">{{ product.description || $t('productDetail.noDescription') || 'No description' }}</p>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Reviews -->
-        <div class="reviews-section">
-          <h2 class="section-title">宝贝评价</h2>
-
-          <div class="reviews-summary" v-if="reviews.length">
-            <div class="avg">
-              <div class="avg-score">{{ avgRating.toFixed(1) }}</div>
-              <div class="avg-stars">
-                <span v-for="i in 5" :key="i" class="star" :class="{ on: i <= Math.round(avgRating) }">★</span>
-              </div>
-              <div class="count">{{ reviews.length }} 条评价</div>
-            </div>
-          </div>
-
-          <div class="review-form panel" v-if="isLoggedIn && canReview">
-            <h3 class="panel-title">发表评价</h3>
-
-            <div class="form-row">
-              <div class="label">选择购买的 SKU</div>
-              <select class="select" v-model="selectedPurchaseKey">
-                <option value="" disabled>请选择</option>
-                <option v-for="p in eligiblePurchases" :key="p.key" :value="p.key">
-                  {{ formatTime(p.purchased_at) }} · {{ p.condition }} · product_id: {{ p.product_id }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-row">
-              <div class="label">评分</div>
-              <div class="stars">
-                <button
-                  v-for="i in 5"
-                  :key="i"
-                  type="button"
-                  class="star-btn"
-                  :class="{ on: i <= rating }"
-                  @click="rating = i"
-                >
-                  ★
-                </button>
-                <span class="hint">{{ rating }}/5</span>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="label">评价内容</div>
-              <textarea
-                class="textarea"
-                v-model="comment"
-                rows="4"
-                placeholder="写下你对这张唱片的感受吧（类似淘宝/拼多多评价）"
-              />
-            </div>
-
-            <div class="form-actions">
-              <button class="btn-primary" :disabled="submitting" @click="submitReview">
-                {{ submitting ? '提交中...' : '提交评价' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 不满足条件时不显示提示面板（按需求隐藏说明提示） -->
-
-          <div v-if="reviews.length === 0" class="no-reviews">
-            暂无评价，快来成为第一个评价的人吧。
-          </div>
-
-          <div v-else class="reviews-list">
-            <div v-for="r in reviews" :key="r.review_id" class="review-card">
-              <div class="review-top">
-                <div class="user">
-                  <div class="avatar">{{ (r.username || 'U').slice(0, 1).toUpperCase() }}</div>
-                  <div class="meta">
-                    <div class="name">{{ maskName(r.username) }}</div>
-                    <div class="time">{{ formatTime(r.created_at) }}</div>
-                  </div>
-                </div>
-                <div class="rating">
-                  <span v-for="i in 5" :key="i" class="star" :class="{ on: i <= r.rating }">★</span>
-                </div>
-              </div>
-
-              <div class="review-body">
-                <div class="purchase">
-                  购买信息：{{ r.purchased_at ? formatTime(r.purchased_at) : '-' }}
-                  · SKU：{{ r.sku_condition || '-' }}（product_id: {{ r.product_id }}）
-                </div>
-                <div class="comment">{{ r.comment }}</div>
-              </div>
-
-              <div class="merchant-reply" v-if="r.merchant_reply">
-                <div class="tag">商家回复</div>
-                <div class="reply-content">{{ r.merchant_reply.content }}</div>
-                <div class="reply-time">{{ formatTime(r.merchant_reply.reply_at) }}</div>
-              </div>
-              <div class="merchant-reply muted" v-else>
-                商家暂未回复
               </div>
             </div>
           </div>
@@ -194,17 +105,15 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getAlbumWithProducts } from '../services/albumService'
-import { isAuthenticated } from '../services/authService'
-import { getPurchaseRecordsForCurrentUser } from '../services/orderService'
-import { addAlbumReview, getAlbumReviews, hasUserReviewedProduct, seedAlbumReviewsIfNeeded } from '../services/reviewService'
+import { getAlbumReviews, getAlbumAverageRating } from '../services/reviewService'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 
+// State
 const isLoading = ref(true)
 const error = ref(null)
-
 const albumId = computed(() => parseInt(route.params.id))
 const albumData = ref(null)
 const albumTitle = ref('')
@@ -215,47 +124,29 @@ const albumGenre = ref('')
 const albumTracklist = ref('')
 const products = ref([])
 const reviews = ref([])
+const avgRating = ref(0)
+const reviewCount = ref(0)
 
-const submitting = ref(false)
-const selectedPurchaseKey = ref('')
-const rating = ref(0)
-const comment = ref('')
-
-// Available conditions
+// Computed
 const conditions = ['Mint', 'Near Mint', 'Good']
-
-// Total products count
 const totalProducts = computed(() => products.value.length)
 
-const isLoggedIn = computed(() => isAuthenticated())
-
-const albumProductIds = computed(() => new Set(products.value.map((p) => p.id)))
-
-const purchasesForThisAlbum = computed(() => {
-  const records = getPurchaseRecordsForCurrentUser()
-  return records.filter((r) => albumProductIds.value.has(r.product_id))
-})
-
-const eligiblePurchases = computed(() => {
-  return purchasesForThisAlbum.value
-    .filter((p) => !hasUserReviewedProduct(p.product_id))
-    .map((p) => ({
-      ...p,
-      key: `${p.order_id}_${p.product_id}`
-    }))
-})
-
-const canReview = computed(() => eligiblePurchases.value.length > 0)
-
-const avgRating = computed(() => {
-  if (!reviews.value.length) return 0
-  return reviews.value.reduce((sum, r) => sum + Number(r.rating || 0), 0) / reviews.value.length
-})
-
-// Get products by condition
+// Helper functions
 const getProductsByCondition = (condition) => {
   return products.value.filter(p => p.condition === condition)
 }
+
+const getProductImage = (product) => {
+  if (product.image_urls) {
+    try {
+      const images = typeof product.image_urls === 'string' ? JSON.parse(product.image_urls) : product.image_urls
+      if (images && images.length > 0) return images[0]
+    } catch (e) {}
+  }
+  return albumImage.value
+}
+
+const handleImageError = (e) => { e.target.src = albumImage.value }
 
 // Load album data
 const loadAlbum = async () => {
@@ -263,10 +154,7 @@ const loadAlbum = async () => {
   error.value = null
   
   try {
-    console.log(`Loading album ID: ${albumId.value}`)
     const data = await getAlbumWithProducts(albumId.value)
-    console.log('Album data:', data)
-    
     albumData.value = data
     albumTitle.value = data.title
     albumArtist.value = data.artist
@@ -275,8 +163,13 @@ const loadAlbum = async () => {
     albumGenre.value = data.genre
     albumTracklist.value = data.tracklist
     products.value = data.products || []
-    seedAlbumReviewsIfNeeded(albumId.value, products.value)
-    reviews.value = getAlbumReviews(albumId.value)
+    
+    const fetchedReviews = await getAlbumReviews(albumId.value)
+    reviews.value = fetchedReviews
+    
+    const ratingData = await getAlbumAverageRating(albumId.value)
+    avgRating.value = ratingData.avg_rating || 0
+    reviewCount.value = ratingData.review_count || 0
     
   } catch (err) {
     console.error('Failed to load album:', err)
@@ -293,84 +186,6 @@ onMounted(() => {
   }
   loadAlbum()
 })
-
-// Get the first product image or fallback to album cover
-const getProductImage = (product) => {
-  if (product.image_urls) {
-    try {
-      const images = typeof product.image_urls === 'string' 
-        ? JSON.parse(product.image_urls) 
-        : product.image_urls;
-      if (images && images.length > 0) {
-        return images[0]; // Return the first uploaded photo
-      }
-    } catch (e) {
-      console.error('Error parsing product images:', e);
-    }
-  }
-  return albumImage.value; // Fallback to album cover
-};
-
-// Handle image load error
-const handleImageError = (e) => {
-  e.target.src = albumImage.value; // Fallback to album cover on error
-};
-
-const formatTime = (iso) => {
-  if (!iso) return '-'
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString()
-  } catch {
-    return String(iso)
-  }
-}
-
-const maskName = (name) => {
-  const s = String(name || '')
-  if (s.length <= 1) return '用户'
-  if (s.length === 2) return `${s[0]}*`
-  return `${s[0]}***${s[s.length - 1]}`
-}
-
-const submitReview = async () => {
-  if (submitting.value) return
-  if (!selectedPurchaseKey.value) {
-    alert('请先选择购买的 SKU')
-    return
-  }
-
-  const purchase = eligiblePurchases.value.find((p) => p.key === selectedPurchaseKey.value)
-  if (!purchase) {
-    alert('该 SKU 不可评价（可能已评价或不属于该专辑）')
-    return
-  }
-
-  submitting.value = true
-  try {
-    const res = addAlbumReview({
-      album_id: albumId.value,
-      product_id: purchase.product_id,
-      rating: rating.value,
-      comment: comment.value,
-      purchased_at: purchase.purchased_at,
-      sku_condition: purchase.condition
-    })
-    if (!res.success) {
-      alert(res.message || '提交失败')
-      return
-    }
-
-    // reset form
-    selectedPurchaseKey.value = ''
-    rating.value = 0
-    comment.value = ''
-
-    reviews.value = getAlbumReviews(albumId.value)
-  } finally {
-    submitting.value = false
-  }
-}
 </script>
 
 <style scoped>
@@ -494,6 +309,56 @@ const submitReview = async () => {
   color: var(--color-primary);
   font-weight: bold;
   margin: var(--spacing-md) 0 0 0;
+}
+
+/* Rating Section */
+.album-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-sm) 0;
+}
+
+.album-rating .stars {
+  display: flex;
+  gap: 2px;
+}
+
+.album-rating .star {
+  font-size: var(--font-size-base);
+  color: #d1d5db;
+}
+
+.album-rating .star.active {
+  color: #f59e0b;
+}
+
+.rating-count {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* Album Actions */
+.album-actions {
+  margin-top: var(--spacing-md);
+}
+
+.view-reviews-btn {
+  display: inline-block;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: 2px solid var(--color-primary);
+  border-radius: var(--border-radius-md);
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: bold;
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.view-reviews-btn:hover {
+  background: var(--color-primary);
+  color: white;
 }
 
 /* Tracklist */
@@ -637,222 +502,7 @@ const submitReview = async () => {
   color: var(--color-text-secondary);
 }
 
-/* Reviews */
-.reviews-section {
-  margin-top: var(--spacing-xxl);
-}
-
-.reviews-summary {
-  background: var(--color-bg);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
-.avg {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.avg-score {
-  font-size: 2rem;
-  font-weight: 900;
-  color: var(--color-primary);
-  line-height: 1;
-}
-
-.avg-stars .star,
-.rating .star {
-  color: #d1d5db;
-}
-
-.star.on {
-  color: #f59e0b;
-}
-
-.count {
-  color: var(--color-text-secondary);
-  font-weight: 600;
-}
-
-.review-form.panel {
-  margin-bottom: var(--spacing-xl);
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: var(--spacing-md);
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-}
-
-.form-row .label {
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.select,
-.textarea {
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--border-radius-md);
-  outline: none;
-  background: white;
-}
-
-.textarea {
-  resize: vertical;
-}
-
-.select:focus,
-.textarea:focus {
-  border-color: rgba(220, 38, 38, 0.35);
-}
-
-.stars {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.star-btn {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 1.2rem;
-  color: #d1d5db;
-  padding: 0;
-}
-
-.star-btn.on {
-  color: #f59e0b;
-}
-
-.hint {
-  margin-left: var(--spacing-sm);
-  color: var(--color-text-secondary);
-  font-weight: 600;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.muted {
-  color: var(--color-text-secondary);
-}
-
-.no-reviews {
-  text-align: center;
-  padding: var(--spacing-xl);
-  background: var(--color-bg);
-  border-radius: var(--border-radius-lg);
-  color: var(--color-text-secondary);
-  box-shadow: var(--shadow-sm);
-}
-
-.reviews-list {
-  display: grid;
-  gap: var(--spacing-lg);
-}
-
-.review-card {
-  background: var(--color-bg);
-  border-radius: var(--border-radius-lg);
-  padding: var(--spacing-xl);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--color-border);
-}
-
-.review-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.user {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-accent);
-  color: var(--color-primary);
-  font-weight: 900;
-}
-
-.meta .name {
-  font-weight: 800;
-  color: var(--color-text-primary);
-}
-
-.meta .time {
-  margin-top: 2px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-
-.review-body {
-  margin-top: var(--spacing-md);
-}
-
-.purchase {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.comment {
-  color: var(--color-text-primary);
-  line-height: 1.8;
-  white-space: pre-line;
-}
-
-.merchant-reply {
-  margin-top: var(--spacing-md);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius-md);
-  background: var(--color-bg-light);
-  border: 1px solid var(--color-border);
-}
-
-.merchant-reply .tag {
-  font-weight: 900;
-  color: var(--color-primary);
-  margin-bottom: 6px;
-}
-
-.merchant-reply .reply-time {
-  margin-top: 6px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-}
-
-@media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .avg {
-    grid-template-columns: auto 1fr;
-    grid-auto-rows: auto;
-  }
-}
-
+/* Responsive */
 @media (max-width: 768px) {
   .album-header {
     flex-direction: column;

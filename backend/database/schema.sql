@@ -1,3 +1,35 @@
+PRAGMA foreign_keys = OFF;
+
+-- Drop all existing tables and views
+DROP TABLE IF EXISTS Reviews;
+DROP TABLE IF EXISTS Cart_Items;
+DROP TABLE IF EXISTS Order_Items;
+DROP TABLE IF EXISTS Orders;
+DROP TABLE IF EXISTS Products;
+DROP TABLE IF EXISTS Albums;
+DROP TABLE IF EXISTS Shipping_Address;
+DROP TABLE IF EXISTS Discussion_Bubbles;
+DROP TABLE IF EXISTS Users;
+
+-- Drop all existing triggers
+DROP TRIGGER IF EXISTS ensure_single_default_address;
+DROP TRIGGER IF EXISTS ensure_single_default_address_update;
+DROP TRIGGER IF EXISTS update_order_total_after_insert;
+DROP TRIGGER IF EXISTS update_order_total_after_update;
+DROP TRIGGER IF EXISTS update_order_total_after_delete;
+DROP TRIGGER IF EXISTS validate_order_paid;
+DROP TRIGGER IF EXISTS validate_order_shipped;
+DROP TRIGGER IF EXISTS validate_order_completed;
+DROP TRIGGER IF EXISTS validate_order_cancelled;
+DROP TRIGGER IF EXISTS prevent_inactive_cart_items;
+DROP TRIGGER IF EXISTS cleanup_cart_after_order;
+
+-- Drop all existing views
+DROP VIEW IF EXISTS vw_product_details;
+DROP VIEW IF EXISTS vw_order_summary;
+DROP VIEW IF EXISTS vw_cart_details;
+DROP VIEW IF EXISTS vw_user_discussions;
+
 PRAGMA foreign_keys = ON;
 
 -- Table: Users
@@ -63,7 +95,7 @@ CREATE TABLE Cart_Items (
 CREATE INDEX idx_cart_user ON Cart_Items(user_id);
 CREATE INDEX idx_cart_product ON Cart_Items(product_id);
 
--- Table: Orders (Order Header) - UPDATED with new timestamp columns
+-- Table: Orders (Order Header)
 -- Description: Represents the transaction receipt
 CREATE TABLE Orders (
     order_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -145,26 +177,42 @@ BEGIN
     WHERE user_id = NEW.user_id AND address_id != NEW.address_id;
 END;
 
--- Table: Reviews
--- Description: Product reviews with merchant replies
+-- Create new Reviews table
 CREATE TABLE Reviews (
     review_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
     rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    comment TEXT,
-    merchant_reply TEXT,
-    reply_at DATETIME,
+    comment TEXT NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES Products(product_id) ON DELETE CASCADE,
-    UNIQUE(user_id, product_id)
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id) ON DELETE CASCADE
 );
 
--- Create indexes for reviews
+-- Create indexes
 CREATE INDEX idx_reviews_product ON Reviews(product_id);
 CREATE INDEX idx_reviews_user ON Reviews(user_id);
-CREATE INDEX idx_reviews_rating ON Reviews(rating);
+CREATE INDEX idx_reviews_order ON Reviews(order_id);
+
+-- Table: Review_Replies (for replies to reviews - no edit/delete)
+CREATE TABLE Review_Replies (
+    reply_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    review_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    parent_reply_id INTEGER,  -- NULL for top-level, for nested replies
+    content TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (review_id) REFERENCES Reviews(review_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_reply_id) REFERENCES Review_Replies(reply_id) ON DELETE CASCADE
+);
+
+-- Create indexes
+CREATE INDEX idx_review_replies_review ON Review_Replies(review_id);
+CREATE INDEX idx_review_replies_user ON Review_Replies(user_id);
+CREATE INDEX idx_review_replies_parent ON Review_Replies(parent_reply_id);
 
 -- Table: Discussion_Bubbles
 -- Description: Forum/Message board for floating bubbles on frontend
@@ -291,8 +339,7 @@ BEGIN
     WHERE order_id = OLD.order_id;
 END;
 
--- UPDATED Trigger: Set paid_at when status changes to 'paid'
-DROP TRIGGER IF EXISTS validate_order_paid;
+-- Trigger: Set paid_at when status changes to 'paid'
 CREATE TRIGGER validate_order_paid
 BEFORE UPDATE OF status ON Orders
 WHEN NEW.status = 'paid' AND OLD.status != 'paid'
@@ -301,7 +348,7 @@ BEGIN
     WHERE order_id = NEW.order_id;
 END;
 
--- NEW Trigger: Set shipped_at when status changes to 'shipped'
+-- Trigger: Set shipped_at when status changes to 'shipped'
 CREATE TRIGGER validate_order_shipped
 BEFORE UPDATE OF status ON Orders
 WHEN NEW.status = 'shipped' AND OLD.status != 'shipped'
@@ -310,7 +357,7 @@ BEGIN
     WHERE order_id = NEW.order_id;
 END;
 
--- NEW Trigger: Set completed_at when status changes to 'completed'
+-- Trigger: Set completed_at when status changes to 'completed'
 CREATE TRIGGER validate_order_completed
 BEFORE UPDATE OF status ON Orders
 WHEN NEW.status = 'completed' AND OLD.status != 'completed'
@@ -319,22 +366,13 @@ BEGIN
     WHERE order_id = NEW.order_id;
 END;
 
--- NEW Trigger: Set cancelled_at when status changes to 'cancelled'
+-- Trigger: Set cancelled_at when status changes to 'cancelled'
 CREATE TRIGGER validate_order_cancelled
 BEFORE UPDATE OF status ON Orders
 WHEN NEW.status = 'cancelled' AND OLD.status != 'cancelled'
 BEGIN
     UPDATE Orders SET cancelled_at = CURRENT_TIMESTAMP
     WHERE order_id = NEW.order_id;
-END;
-
--- Trigger: Ensure merchant_reply has reply_at timestamp
-CREATE TRIGGER update_reply_timestamp
-BEFORE UPDATE OF merchant_reply ON Reviews
-WHEN NEW.merchant_reply IS NOT NULL AND OLD.merchant_reply IS NULL
-BEGIN
-    UPDATE Reviews SET reply_at = CURRENT_TIMESTAMP
-    WHERE review_id = NEW.review_id;
 END;
 
 -- Trigger: Prevent adding to cart if product is inactive

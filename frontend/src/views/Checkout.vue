@@ -256,7 +256,7 @@ const isSubmitting = ref(false)
 const error = ref(null)
 const errorMessage = ref('')
 const successMessage = ref('')
-const paymentMethod = ref('支付宝') // Set default payment method
+const paymentMethod = ref('支付宝')
 const addresses = ref([])
 const selectedAddressId = ref(null)
 
@@ -266,6 +266,7 @@ const form = ref({
   addressLine1: '',
   addressLine2: '',
   city: '',
+  state: '',
   postalCode: '',
   country: '',
   phone: ''
@@ -294,7 +295,6 @@ const loadAddresses = async () => {
   }
 }
 
-// Add this function (around line 180-200)
 // Select address
 const selectAddress = (address) => {
   selectedAddressId.value = address.address_id
@@ -332,43 +332,63 @@ const isFormValid = computed(() => {
          form.value.phone
 })
 
+// Get placeholder image
+const getPlaceholder = () => {
+  return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjZTJlMmUyIi8+PHRleHQgeD0iMTYiIHk9IjQ1IiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
+}
+
 // Load checkout items (from either draft or cart)
 const loadCheckoutItems = async () => {
   isLoading.value = true
   error.value = null
   
   try {
-    // Check if there's a checkout draft (from Buy Now)
+    // IMPORTANT: Check for checkout draft FIRST
     const draftStr = sessionStorage.getItem('checkout_draft')
+    console.log('Draft from sessionStorage:', draftStr)
+    
     if (draftStr) {
       const draft = JSON.parse(draftStr)
+      console.log('Parsed draft:', draft)
+      
       if (draft?.items?.length) {
-        console.log('Loading from draft:', draft)
+        console.log('Loading from draft with', draft.items.length, 'items')
         cartItems.value = draft.items.map((it) => ({
           id: it.product_id,
-          name: it.name,
-          artist: it.artist,
-          image: it.image,
-          condition: it.condition,
-          price: Number(it.price_at_purchase || 0)
+          name: it.name || 'Unknown Product',
+          artist: it.artist || '',
+          image: it.image || getPlaceholder(),
+          condition: it.condition || '',
+          price: Number(it.price_at_purchase || it.price || 0)
         }))
-        // Clear the draft after loading
+        
+        // Clear the draft after loading to prevent reuse
         sessionStorage.removeItem('checkout_draft')
+        console.log('Draft cleared, loaded items:', cartItems.value)
         return
+      } else {
+        console.log('Draft found but has no items, clearing it')
+        sessionStorage.removeItem('checkout_draft')
       }
     }
 
-    // If no draft, load from cart
-    console.log('No draft found, loading from cart')
+    // If no draft or empty draft, load from cart
+    console.log('No valid draft found, loading from cart')
     const cart = await getCart()
-    if (!cart.length) {
-      error.value = '购物车为空，无法结算'
+    console.log('Cart items from API:', cart)
+    
+    if (!cart || cart.length === 0) {
+      cartItems.value = []
       return
     }
     cartItems.value = cart
+    console.log('Loaded from cart, items count:', cartItems.value.length)
+    
   } catch (e) {
     console.error('Failed to load checkout items:', e)
     error.value = t('common.loadError')
+    // Clear any invalid draft
+    sessionStorage.removeItem('checkout_draft')
   } finally {
     isLoading.value = false
   }
@@ -380,7 +400,7 @@ const getFormattedAddress = () => {
     form.value.fullName,
     form.value.addressLine1,
     form.value.addressLine2,
-    `${form.value.city}, ${form.value.postalCode}`,
+    `${form.value.city}${form.value.state ? ', ' + form.value.state : ''} ${form.value.postalCode}`,
     form.value.country,
     `Phone: ${form.value.phone}`
   ].filter(Boolean)
@@ -399,7 +419,15 @@ const placeOrder = async () => {
   try {
     const token = localStorage.getItem('token')
     
-    // Send the cart items directly to the backend
+    // Prepare items for order
+    const orderItems = cartItems.value.map(item => ({
+      product_id: item.id,
+      price: item.price,
+      quantity: 1
+    }))
+    
+    console.log('Placing order with items:', orderItems)
+    
     const response = await fetch('/api/orders/create', {
       method: 'POST',
       headers: {
@@ -409,21 +437,20 @@ const placeOrder = async () => {
       body: JSON.stringify({
         shipping_address: getFormattedAddress(),
         payment_method: paymentMethod.value,
-        items: cartItems.value.map(item => ({
-          product_id: item.id,
-          price: item.price,
-          quantity: 1
-        }))
+        items: orderItems
       })
     })
     
     const data = await response.json()
+    console.log('Order response:', data)
     
     if (response.ok) {
-      // Clear the cart only if it was a cart checkout, not a draft
+      // Check if this was from a draft (meaning it was a buy now/selected)
       const hadDraft = sessionStorage.getItem('checkout_draft')
       if (!hadDraft) {
+        // Only clear cart if this was a full cart checkout
         await clearCart()
+        console.log('Cart cleared')
       }
       sessionStorage.removeItem('checkout_draft')
       

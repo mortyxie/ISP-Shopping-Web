@@ -19,6 +19,7 @@
       "about": "關於我們"
     }
   },
+  "locale": "zh-TW",
   "home": {
     "latestUpdates": "最新動態",
     "viewMore": "查看更多",
@@ -29,7 +30,10 @@
     "hoursAgo": "{count}小時前",
     "daysAgo": "{count}天前",
     "noMessages": "暫無留言",
-    "anonymous": "匿名用戶"
+    "anonymous": "匿名用戶",
+    "previous": "上一頁",
+    "next": "下一頁",
+    "page": "第"
   },
   "profile": {
     "title": "個人中心",
@@ -334,8 +338,58 @@
     "tracklist": "曲目列表",
     "availableCopies": "可用唱片",
     "noProducts": "該專輯暫無唱片",
-    "noItemsInCondition": "該成色下暫無唱片"
+    "noItemsInCondition": "該成色下暫無唱片",
+    "viewAllReviews": "查看全部評價",
+    "reviews": {
+      "title": "寶貝評價",
+      "summary": {
+        "average": "平均評分",
+        "total": "條評價"
+      },
+      "form": {
+        "title": "發表評價",
+        "selectSku": "選擇購買的 SKU",
+        "selectPlaceholder": "請選擇",
+        "rating": "評分",
+        "comment": "評價內容",
+        "commentPlaceholder": "寫下你對這張唱片的感受吧（類似淘寶/拼多多評價）",
+        "submit": "提交評價",
+        "submitting": "提交中..."
+      },
+      "noReviews": "暫無評價，快來成為第一個評價的人吧。",
+      "merchantReply": "商家回覆",
+      "noReply": "商家暫未回覆",
+      "purchaseInfo": "購買資訊",
+      "sku": "SKU",
+      "productId": "product_id"
+    },
+    "conditions": {
+      "mint": "完美品",
+      "nearmint": "近完美品",
+      "good": "良好",
+      "copies": "件"
+    }
   },
+  
+  "review": {
+  "title": "商品評價",
+  "back": "返回",
+  "reviews": "條評價",
+  "noReviews": "暫無評價，快去購買後留下你的評價吧！",
+  "version": "版本",
+  "rating": "評分",
+  "reply": "回覆",
+  "replyToThread": "回覆本討論",
+  "replyPlaceholder": "寫下你的回覆...",
+  "submitReply": "提交回覆",
+  "submitting": "提交中...",
+  "cancel": "取消",
+  "loginToReply": "請先登錄後再回覆",
+  "replyRequired": "請輸入回覆內容",
+  "replyTooLong": "回覆內容不能超過500個字符",
+  "replySuccess": "回覆成功！",
+  "replyFailed": "回覆失敗，請重試"
+},
   "category": {
     "albums": "張專輯",
     "title": "商品分類",
@@ -378,7 +432,10 @@
     "loadMore": "載入更多",
     "loading": "載入中...",
     "foundAlbums": "找到 {count} 張專輯",
-    "products": "件商品"
+    "products": "件商品",
+    "previous": "上一頁",
+    "next": "下一頁",
+    "page": "第"
   },
   "orders": {
     "title": "我的訂單",
@@ -423,40 +480,77 @@
     "noFilteredResultsDesc": "沒有符合當前篩選條件的訂單。請嘗試更改篩選條件。"
   },
   "orderDetail": {
-    "title": "訂單詳情",
-    "backToList": "返回訂單列表",
-    "backToSeller": "返回賣家後台",
-    "status": "訂單狀態",
-    "orderDate": "下單時間",
-    "shippingInfo": "配送信息",
-    "address": "收貨地址",
-    "paymentMethod": "支付方式",
-    "transactionId": "交易單號",
-    "paidAt": "支付時間",
-    "notSpecified": "未指定",
-    "orderItems": "商品清單",
-    "subtotal": "商品合計",
-    "shipping": "運費",
-    "total": "訂單總計",
-    "payNow": "立即支付",
-    "cancelOrder": "取消訂單",
-    "confirmReceipt": "確認收貨",
-    "confirmCancel": "確定要取消這個訂單嗎？",
-    "confirmReceiptMsg": "您確認已經收到商品了嗎？",
-    "cancelFailed": "取消訂單失敗",
-    "confirmFailed": "確認收貨失敗",
-    "payFeature": "支付功能即將推出！",
-    "timeline": {
-      "title": "訂單時間線",
-      "placed": "訂單已創建",
-      "payment": "付款已確認",
-      "shipped": "已發貨",
-      "delivered": "已送達",
-      "cancelled": "已取消",
-      "pending": "待處理",
-      "notYet": "尚未"
+  "title": "訂單詳情",
+  "backToList": "返回訂單列表",
+  "backToSeller": "返回賣家後台",
+  "status": "訂單狀態",
+  "orderDate": "下單時間",
+  "shippingInfo": "配送信息",
+  "address": "收貨地址",
+  "paymentMethod": "支付方式",
+  "transactionId": "交易單號",
+  "paidAt": "支付時間",
+  "notSpecified": "未指定",
+  "orderItems": "商品清單",
+  "subtotal": "商品合計",
+  "shipping": "運費",
+  "total": "訂單總計",
+  "payNow": "立即支付",
+  "cancelOrder": "取消訂單",
+  "confirmReceipt": "確認收貨",
+  "confirmCancel": "確定要取消這個訂單嗎？",
+  "confirmReceiptMsg": "您確認已經收到商品了嗎？",
+  "confirmPayment": "確認支付嗎？",
+  "paymentSuccess": "✅ 支付成功！訂單已確認。",
+  "paymentFailed": "❌ 支付失敗。請重試。",
+  "cancelSuccess": "訂單已取消",
+  "cancelFailed": "取消訂單失敗",
+  "confirmSuccess": "感謝確認！訂單已完成。",
+  "confirmFailed": "確認收貨失敗",
+  "payFeature": "支付功能即將推出！",
+  "timeline": {
+    "title": "訂單時間線",
+    "placed": "訂單已創建",
+    "payment": "付款已確認",
+    "shipped": "已發貨",
+    "delivered": "已送達",
+    "cancelled": "已取消",
+    "pending": "待處理",
+    "notYet": "尚未"
+  },
+  "sellerView": "您正在以賣家身份查看此訂單。",
+  "review": {
+    "title": "寫評價",
+    "selectProduct": "選擇要評價的商品",
+    "selectPlaceholder": "請選擇商品",
+    "reviewed": "已評價",
+    "reviewedCount": "已評價數量",
+    "version": "版本",
+    "rating": "評分",
+    "comment": "評價內容",
+    "commentPlaceholder": "分享你的使用感受...",
+    "submit": "提交評價",
+    "submitting": "提交中...",
+    "cancel": "取消",
+    "alreadyReviewed": "你已經評價過這個商品了",
+    "viewReview": "查看評價",
+    "allReviewed": "你已經評價過這個訂單的所有商品，感謝你的分享！",
+    "viewReviews": "查看評價",
+    "submitAllRemaining": "提交剩餘評價",
+    "defaultComment": "商品品質很好，值得購買！",
+    "success": {
+      "reviewSubmitted": "評價提交成功！",
+      "allReviewed": "所有評價都已提交成功！",
+      "partialReviewed": "已成功提交 {count}/{total} 條評價"
     },
-    "sellerView": "您正在以賣家身份查看此訂單。"
+    "errors": {
+      "noRating": "請選擇評分",
+      "noComment": "請填寫評價內容",
+      "submitFailed": "提交失敗，請重試",
+      "noAlbumFound": "無法找到對應的專輯",
+      "loadFailed": "無法跳轉到評價頁面"
+    }
+  }
   },
   "forum": {
     "placeholder": "分享你的想法...（最多144字）",

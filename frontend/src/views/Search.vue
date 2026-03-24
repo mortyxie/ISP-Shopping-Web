@@ -54,69 +54,108 @@
         </div>
 
         <!-- Show all albums when "All Categories" is selected without search -->
-        <div v-else-if="showAllAlbums && albums.length > 0" class="albums-grid">
-          <div v-for="album in albums" :key="album.album_id" class="album-card">
-            <router-link :to="`/album/${album.album_id}`" class="album-link">
-              <div class="album-image">
-                <img v-if="album.cover_image_url" :src="album.cover_image_url" :alt="album.title" />
-                <div v-else class="no-image">
-                  {{ album.title?.charAt(0) || '💿' }}
+        <div v-else-if="showAllAlbums && allAlbums.length > 0" class="results-container">
+          <div class="albums-grid">
+            <div v-for="album in paginatedAlbums" :key="album.album_id" class="album-card">
+              <router-link :to="`/album/${album.album_id}`" class="album-link">
+                <div class="album-image">
+                  <img v-if="album.cover_image_url" :src="album.cover_image_url" :alt="album.title" />
+                  <div v-else class="no-image">
+                    {{ album.title?.charAt(0) || '💿' }}
+                  </div>
                 </div>
-              </div>
-              <div class="album-info">
-                <div class="album-category">{{ album.genre || t('category.other') }}</div>
-                <div class="album-title">{{ album.title }}</div>
-                <div class="album-artist">{{ album.artist }}</div>
-                <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
-                <div class="album-count">{{ album.product_count || 0 }} {{ $t('search.products') }}</div>
-              </div>
-            </router-link>
+                <div class="album-info">
+                  <div class="album-category">{{ album.genre || t('category.other') }}</div>
+                  <div class="album-title">{{ album.title }}</div>
+                  <div class="album-artist">{{ album.artist }}</div>
+                  <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
+                  <div class="album-count">{{ album.product_count || 0 }} {{ $t('search.products') }}</div>
+                </div>
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div v-if="totalPages > 1" class="pagination-controls">
+            <button 
+              class="page-btn prev-btn" 
+              @click="previousPage"
+              :disabled="currentPage === 1"
+            >
+              ← {{ $t('search.previous') }}
+            </button>
+            
+            <div class="page-info">
+              {{ $t('search.page') }} {{ currentPage }} / {{ totalPages }}
+            </div>
+            
+            <button 
+              class="page-btn next-btn" 
+              @click="nextPage"
+              :disabled="currentPage === totalPages"
+            >
+              {{ $t('search.next') }} →
+            </button>
           </div>
         </div>
 
         <!-- Empty state for no results -->
-        <div v-else-if="albums.length === 0 && searched" class="empty-state">
+        <div v-else-if="allAlbums.length === 0 && searched" class="empty-state">
           <div class="empty-icon">🔍</div>
           <h2>{{ $t('search.noResults') }}</h2>
           <p>{{ $t('search.tryDifferentKeyword') }}</p>
         </div>
 
         <!-- Search results with filters -->
-        <div v-else-if="albums.length > 0" class="albums-grid">
-          <div v-for="album in albums" :key="album.album_id" class="album-card">
-            <router-link :to="`/album/${album.album_id}`" class="album-link">
-              <div class="album-image">
-                <img v-if="album.cover_image_url" :src="album.cover_image_url" :alt="album.title" />
-                <div v-else class="no-image">
-                  {{ album.title?.charAt(0) || '💿' }}
+        <div v-else-if="allAlbums.length > 0" class="results-container">
+          <div class="albums-grid">
+            <div v-for="album in paginatedAlbums" :key="album.album_id" class="album-card">
+              <router-link :to="`/album/${album.album_id}`" class="album-link">
+                <div class="album-image">
+                  <img v-if="album.cover_image_url" :src="album.cover_image_url" :alt="album.title" />
+                  <div v-else class="no-image">
+                    {{ album.title?.charAt(0) || '💿' }}
+                  </div>
                 </div>
-              </div>
-              <div class="album-info">
-                <div class="album-category">{{ album.genre || t('category.other') }}</div>
-                <div class="album-title">{{ album.title }}</div>
-                <div class="album-artist">{{ album.artist }}</div>
-                <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
-                <div class="album-count">{{ album.product_count || 0 }} {{ $t('search.products') }}</div>
-              </div>
-            </router-link>
+                <div class="album-info">
+                  <div class="album-category">{{ album.genre || t('category.other') }}</div>
+                  <div class="album-title">{{ album.title }}</div>
+                  <div class="album-artist">{{ album.artist }}</div>
+                  <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
+                  <div class="album-count">{{ album.product_count || 0 }} {{ $t('search.products') }}</div>
+                </div>
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div v-if="totalPages > 1" class="pagination-controls">
+            <button 
+              class="page-btn prev-btn" 
+              @click="previousPage"
+              :disabled="currentPage === 1"
+            >
+              ← {{ $t('search.previous') }}
+            </button>
+            
+            <div class="page-info">
+              {{ $t('search.page') }} {{ currentPage }} / {{ totalPages }}
+            </div>
+            
+            <button 
+              class="page-btn next-btn" 
+              @click="nextPage"
+              :disabled="currentPage === totalPages"
+            >
+              {{ $t('search.next') }} →
+            </button>
           </div>
         </div>
 
-        <!-- 分页 -->
-        <div v-if="albums.length > 0 && hasMore" class="pagination">
-          <button
-            @click="loadMore"
-            :disabled="isLoadingMore"
-            class="load-more-button"
-          >
-            {{ isLoadingMore ? $t('search.loading') : $t('search.loadMore') }}
-          </button>
-        </div>
-
         <!-- 结果统计 -->
-        <div v-if="albums.length > 0" class="results-summary">
+        <div v-if="allAlbums.length > 0" class="results-summary">
           <p>
-            {{ showAllAlbums ? $t('search.allAlbums', { count: albums.length }) : $t('search.foundAlbums', { count: albums.length }) }}
+            {{ showAllAlbums ? $t('search.allAlbums', { count: allAlbums.length }) : $t('search.foundAlbums', { count: allAlbums.length }) }}
             {{ selectedCategory ? ` - ${getCategoryLabel(selectedCategory)}` : '' }}
             {{ searchKeyword ? ` - "${searchKeyword}"` : '' }}
           </p>
@@ -137,17 +176,47 @@ const { t } = useI18n()
 
 const searchKeyword = ref('')
 const selectedCategory = ref(null)
-const albums = ref([])
+const allAlbums = ref([])
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
-const currentPage = ref(1)
-const hasMore = ref(false)
 const searched = ref(false)
+
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = 8
+
+// Computed: Paginated albums
+const paginatedAlbums = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return allAlbums.value.slice(start, end)
+})
+
+// Computed: Total pages
+const totalPages = computed(() => {
+  return Math.ceil(allAlbums.value.length / itemsPerPage)
+})
 
 // Computed property to check if we're showing all albums
 const showAllAlbums = computed(() => {
-  return !selectedCategory && !searchKeyword.value.trim()
+  return !selectedCategory.value && !searchKeyword.value.trim()
 })
+
+// Pagination methods
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    // Scroll to top of results
+    document.querySelector('.search-results')?.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
+const previousPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    document.querySelector('.search-results')?.scrollIntoView({ behavior: 'smooth' })
+  }
+}
 
 const categories = ['Rock', 'Pop', 'Jazz', 'Classical', 'Electronic', 'Hip Hop', 'Folk', 'Metal', 'Punk', 'Blues', 'Country', 'World']
 
@@ -197,6 +266,8 @@ const searchAlbums = async (params) => {
 
 // 执行搜索或加载所有专辑
 const handleSearch = async () => {
+  currentPage.value = 1 // Reset to first page on new search
+  
   // If no category and no search keyword, show all albums
   if (!selectedCategory.value && !searchKeyword.value.trim()) {
     await loadAllAlbums()
@@ -206,11 +277,10 @@ const handleSearch = async () => {
 
   isLoading.value = true
   searched.value = true
-  currentPage.value = 1
 
   try {
     const params = {
-      limit: 20
+      limit: 100 // Fetch more to enable pagination on client side
     }
     
     if (searchKeyword.value.trim()) {
@@ -222,9 +292,7 @@ const handleSearch = async () => {
     }
 
     const results = await searchAlbums(params)
-
-    albums.value = results
-    hasMore.value = results.length >= 20
+    allAlbums.value = results
 
     // 更新URL参数
     const query = {}
@@ -237,7 +305,7 @@ const handleSearch = async () => {
     })
   } catch (error) {
     console.error('Search error:', error)
-    albums.value = []
+    allAlbums.value = []
   } finally {
     isLoading.value = false
   }
@@ -249,15 +317,14 @@ const loadAllAlbums = async () => {
   currentPage.value = 1
   
   try {
-    const results = await getAllAlbums({ limit: 20 })
-    albums.value = results
-    hasMore.value = results.length >= 20
+    const results = await getAllAlbums({ limit: 100 })
+    allAlbums.value = results
     
     // Clear URL params
     router.replace({ path: '/search', query: {} })
   } catch (error) {
     console.error('Failed to load albums:', error)
-    albums.value = []
+    allAlbums.value = []
   } finally {
     isLoading.value = false
   }
@@ -267,49 +334,6 @@ const loadAllAlbums = async () => {
 const filterByCategory = (category) => {
   selectedCategory.value = category
   handleSearch()
-}
-
-// 加载更多结果
-const loadMore = async () => {
-  if (isLoadingMore.value || !hasMore.value) return
-
-  isLoadingMore.value = true
-  currentPage.value++
-
-  try {
-    let moreResults = []
-    
-    if (showAllAlbums.value) {
-      // Load more all albums
-      moreResults = await getAllAlbums({
-        limit: 20,
-        offset: (currentPage.value - 1) * 20
-      })
-    } else {
-      // Load more search results
-      const params = {
-        limit: 20,
-        offset: (currentPage.value - 1) * 20
-      }
-      
-      if (searchKeyword.value.trim()) {
-        params.search = searchKeyword.value.trim()
-      }
-      
-      if (selectedCategory.value) {
-        params.category = selectedCategory.value
-      }
-
-      moreResults = await searchAlbums(params)
-    }
-
-    albums.value = [...albums.value, ...moreResults]
-    hasMore.value = moreResults.length >= 20
-  } catch (error) {
-    console.error('Load more error:', error)
-  } finally {
-    isLoadingMore.value = false
-  }
 }
 
 // 从URL获取搜索参数
@@ -622,6 +646,49 @@ onMounted(async () => {
   font-size: var(--font-size-sm);
   border: 1px solid var(--color-border);
 }
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xxl);
+  padding: var(--spacing-lg);
+}
+
+.page-btn {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  transition: all var(--transition-base);
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.results-container {
+  width: 100%;
+}
+
 
 /* 响应式设计 */
 @media (max-width: 992px) {

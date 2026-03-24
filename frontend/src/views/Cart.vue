@@ -77,7 +77,7 @@
             <div class="item-col action-col">
               <button
                 class="buy-now-btn"
-                @click="buyNow(item.id, item.name, item.price)"
+                @click="buyNow(item.id, item.name, item.price, item.condition, item.image, item.artist)"
                 :title="$t('cart.buyNow')"
                 :disabled="isLoading"
               >
@@ -182,45 +182,60 @@ const toggleSelectAll = () => {
 }
 
 // 单个商品立即购买
-const buyNow = (itemId, itemName, price) => {
+const buyNow = (itemId, itemName, price, condition, image, artist) => {
   if (!isAuthenticated()) {
     router.push('/login')
     return
   }
-  setCheckoutDraft({
+  
+  // Create draft with complete item information
+  const draft = {
     source: 'cart',
     items: [{
       product_id: itemId,
-      price: price,
-      quantity: 1
+      price_at_purchase: price,
+      quantity: 1,
+      name: itemName,
+      artist: artist || '',
+      image: image || getPlaceholder(),
+      condition: condition
     }]
-  })
+  }
+  
+  setCheckoutDraft(draft)
   router.push('/checkout')
 }
 
 // 购买选中商品
+// Buy selected items
 const buySelected = () => {
   if (!isAuthenticated()) {
     router.push('/login')
     return
   }
 
-  const selected = Array.from(selectedItems.value)
   const selectedCartItems = cartItems.value.filter(item => selectedItems.value.has(item.id))
 
-  if (selected.length === 0) {
-    alert('请先选择要购买的商品')
+  if (selectedCartItems.length === 0) {
+    alert('Please select an item.')
     return
   }
 
-  setCheckoutDraft({
+  // Create draft with complete item information
+  const draft = {
     source: 'cart',
     items: selectedCartItems.map(item => ({
       product_id: item.id,
-      price: item.price,
-      quantity: 1
+      price_at_purchase: item.price,
+      quantity: 1,
+      name: item.name,
+      artist: item.artist || '',
+      image: item.image || getPlaceholder(),
+      condition: item.condition
     }))
-  })
+  }
+  
+  setCheckoutDraft(draft)
   router.push('/checkout')
 }
 

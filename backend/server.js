@@ -862,7 +862,7 @@ app.post('/api/orders/create', authenticateToken, (req, res) => {
   }
 });
 
-// Get user's orders (with all timestamp fields)
+/// Get user's orders (with all timestamp fields)
 app.get('/api/orders', authenticateToken, (req, res) => {
   const userId = req.user.userId;
   
@@ -889,17 +889,18 @@ app.get('/api/orders', authenticateToken, (req, res) => {
         return res.status(500).json({ error: err.message });
       }
       
-      // Get items for each order
       const ordersWithItems = orders.map(order => {
         return new Promise((resolve, reject) => {
           db.all(
             `SELECT 
-              oi.order_item_id as id,
+              oi.order_item_id as order_item_id,
               oi.quantity,
               oi.price_at_purchase as price,
               p.condition,
               a.title as name,
-              a.cover_image_url as image
+              a.cover_image_url as image,
+              a.album_id,
+              p.product_id as id
             FROM Order_Items oi
             JOIN Products p ON oi.product_id = p.product_id
             JOIN Albums a ON p.album_id = a.album_id
@@ -907,7 +908,6 @@ app.get('/api/orders', authenticateToken, (req, res) => {
             [order.id],
             (err, items) => {
               if (err) reject(err);
-              
               resolve({
                 ...order,
                 items: items || []
@@ -955,12 +955,14 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
       
       db.all(
         `SELECT 
-          oi.order_item_id as id,
+          oi.order_item_id as order_item_id,
           oi.quantity,
           oi.price_at_purchase as price,
           p.condition,
           a.title as name,
-          a.cover_image_url as image
+          a.cover_image_url as image,
+          a.album_id,
+          p.product_id as id
         FROM Order_Items oi
         JOIN Products p ON oi.product_id = p.product_id
         JOIN Albums a ON p.album_id = a.album_id
@@ -971,7 +973,6 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
             return res.status(500).json({ error: err.message });
           }
           
-          // Calculate subtotal
           const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
           const shipping = subtotal >= 500 ? 0 : 50;
           
@@ -1213,6 +1214,350 @@ app.post('/api/orders/:id/pay', authenticateToken, (req, res) => {
           }
         );
       });
+    }
+  );
+});
+
+// ==================== REVIEWS API ====================
+
+// Get reviews for album with replies
+app.get('/api/reviews/album/:albumId', (req, res) => {
+  const albumId = req.params.albumId;
+  
+  db.all(
+    `SELECT 
+      r.review_id,
+      r.rating,
+      r.comment,
+      r.created_at,
+      u.user_id,
+      u.username,
+      u.avatar_url,
+      u.role,
+      p.product_id,
+      p.condition as sku_condition
+    FROM Reviews r
+    JOIN Users u ON r.user_id = u.user_id
+    JOIN Products p ON r.product_id = p.product_id
+    WHERE p.album_id = ?
+    ORDER BY r.created_at DESC`,
+    [albumId],
+    (err, reviews) => {
+      if (err) {
+        console.error('Error fetching reviews:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      if (reviews.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all replies for these reviews
+      const reviewIds = reviews.map(r => r.review_id);
+      const placeholders = reviewIds.map(() => '?').join(',');
+      
+      db.all(
+        `SELECT 
+          rr.reply_id,
+          rr.review_id,
+          rr.content,
+          rr.created_at,
+          rr.parent_reply_id,
+          u.user_id,
+          u.username,
+          u.avatar_url,
+          u.role
+        FROM Review_Replies rr
+        JOIN Users u ON rr.user_id = u.user_id
+        WHERE rr.review_id IN (${placeholders})
+        ORDER BY rr.created_at ASC`,
+        reviewIds,
+        (err, replies) => {
+          if (err) {
+            console.error('Error fetching replies:', err);
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Group replies by review_id
+          const repliesByReview = {};
+          replies.forEach(reply => {
+            if (!repliesByReview[reply.review_id]) {
+              repliesByReview[reply.review_id] = [];
+            }
+            repliesByReview[reply.review_id].push(reply);
+          });
+          
+          // Organize into nested structure
+          const nestedRepliesByReview = {};
+          Object.keys(repliesByReview).forEach(reviewId => {
+            const replyMap = new Map();
+            const nestedReplies = [];
+            
+            repliesByReview[reviewId].forEach(reply => {
+              reply.replies = [];
+              replyMap.set(reply.reply_id, reply);
+              
+              if (reply.parent_reply_id === null) {
+                nestedReplies.push(reply);
+              } else {
+                const parent = replyMap.get(reply.parent_reply_id);
+                if (parent) {
+                  parent.replies.push(reply);
+                }
+              }
+            });
+            
+            nestedRepliesByReview[reviewId] = nestedReplies;
+          });
+          
+          // Add replies to reviews
+          const reviewsWithReplies = reviews.map(review => ({
+            ...review,
+            replies: nestedRepliesByReview[review.review_id] || []
+          }));
+          
+          res.json(reviewsWithReplies);
+        }
+      );
+    }
+  );
+});
+
+// Add reply to a review (no edit/delete)
+app.post('/api/reviews/:reviewId/reply', authenticateToken, (req, res) => {
+  const reviewId = req.params.reviewId;
+  const { content, parent_reply_id } = req.body;
+  const userId = req.user.userId;
+  
+  if (!content || content.trim().length === 0) {
+    return res.status(400).json({ error: 'Reply content cannot be empty' });
+  }
+  
+  if (content.length > 500) {
+    return res.status(400).json({ error: 'Reply must be less than 500 characters' });
+  }
+  
+  // Check if review exists
+  db.get('SELECT review_id FROM Reviews WHERE review_id = ?', [reviewId], (err, review) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    
+    // If parent_reply_id is provided, check if it exists
+    if (parent_reply_id) {
+      db.get(
+        'SELECT reply_id FROM Review_Replies WHERE reply_id = ? AND review_id = ?',
+        [parent_reply_id, reviewId],
+        (err, parentReply) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+          if (!parentReply) {
+            return res.status(404).json({ error: 'Parent reply not found' });
+          }
+          insertReply();
+        }
+      );
+    } else {
+      insertReply();
+    }
+    
+    function insertReply() {
+      db.run(
+        `INSERT INTO Review_Replies (review_id, user_id, parent_reply_id, content, created_at)
+         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [reviewId, userId, parent_reply_id || null, content.trim()],
+        function(err) {
+          if (err) {
+            console.error('Error creating reply:', err);
+            return res.status(500).json({ error: err.message });
+          }
+          
+          // Get the created reply with user info
+          db.get(
+            `SELECT 
+              rr.reply_id,
+              rr.content,
+              rr.created_at,
+              rr.parent_reply_id,
+              u.user_id,
+              u.username,
+              u.avatar_url,
+              u.role
+            FROM Review_Replies rr
+            JOIN Users u ON rr.user_id = u.user_id
+            WHERE rr.reply_id = ?`,
+            [this.lastID],
+            (err, reply) => {
+              if (err) {
+                return res.status(500).json({ error: err.message });
+              }
+              res.status(201).json({ 
+                success: true, 
+                message: 'Reply added successfully',
+                reply: reply
+              });
+            }
+          );
+        }
+      );
+    }
+  });
+});
+
+// Get average rating for an album
+app.get('/api/reviews/album/:albumId/average', (req, res) => {
+  const albumId = req.params.albumId;
+  
+  db.get(
+    `SELECT 
+      AVG(r.rating) as avg_rating,
+      COUNT(r.review_id) as review_count
+    FROM Reviews r
+    JOIN Products p ON r.product_id = p.product_id
+    WHERE p.album_id = ?`,
+    [albumId],
+    (err, result) => {
+      if (err) {
+        console.error('Error fetching average rating:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({
+        avg_rating: result?.avg_rating || 0,
+        review_count: result?.review_count || 0
+      });
+    }
+  );
+});
+
+
+
+// Create a new review
+app.post('/api/reviews', authenticateToken, (req, res) => {
+  const { product_id, order_id, rating, comment } = req.body;
+  const userId = req.user.userId;
+  
+  console.log('=== REVIEW SUBMISSION ===');
+  console.log('product_id:', product_id);
+  console.log('order_id:', order_id);
+  console.log('rating:', rating);
+  console.log('comment:', comment);
+  console.log('userId:', userId);
+  
+  if (!product_id || !order_id || !rating || !comment) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  if (rating < 1 || rating > 5) {
+    return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+  }
+  
+  // Check if product exists
+  db.get('SELECT * FROM Products WHERE product_id = ?', [product_id], (err, product) => {
+    if (err) {
+      console.error('Error checking product:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Check if order exists, belongs to user, and is completed
+    db.get(
+      `SELECT * FROM Orders WHERE order_id = ? AND user_id = ? AND status = 'completed'`,
+      [order_id, userId],
+      (err, order) => {
+        if (err) {
+          console.error('Error checking order:', err);
+          return res.status(500).json({ error: err.message });
+        }
+        if (!order) {
+          return res.status(403).json({ error: 'You can only review completed orders' });
+        }
+        
+        // Check if this specific product in this order has already been reviewed
+        db.get(
+          `SELECT review_id FROM Reviews WHERE order_id = ? AND product_id = ?`,
+          [order_id, product_id],
+          (err, existing) => {
+            if (err) {
+              return res.status(500).json({ error: err.message });
+            }
+            if (existing) {
+              return res.status(400).json({ error: 'You have already reviewed this product in this order' });
+            }
+            
+            // Insert review
+            db.run(
+              `INSERT INTO Reviews (user_id, product_id, order_id, rating, comment, created_at)
+               VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+              [userId, product_id, order_id, rating, comment],
+              function(err) {
+                if (err) {
+                  console.error('Error inserting review:', err);
+                  return res.status(500).json({ error: err.message });
+                }
+                
+                console.log('Review inserted successfully! ID:', this.lastID);
+                res.json({ 
+                  success: true, 
+                  message: 'Review submitted successfully',
+                  review_id: this.lastID
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+
+// Check which products in an order have been reviewed
+app.get('/api/reviews/user/order/:orderId', authenticateToken, (req, res) => {
+  const orderId = req.params.orderId;
+  const userId = req.user.userId;
+  
+  console.log('Fetching reviews for order:', orderId, 'user:', userId);
+  
+  // Get all reviews for this order to return which products were reviewed
+  db.all(
+    'SELECT product_id, review_id FROM Reviews WHERE order_id = ? AND user_id = ?',
+    [orderId, userId],
+    (err, reviews) => {
+      if (err) {
+        console.error('Error fetching reviews:', err);
+        return res.status(500).json({ error: err.message });
+      }
+      
+      console.log('Found reviews:', reviews);
+      
+      // Return which products were reviewed
+      res.json({ 
+        hasReviewed: reviews.length > 0,
+        reviewedProducts: reviews.map(r => r.product_id)
+      });
+    }
+  );
+});
+
+// Check if user has reviewed a specific product in an order
+app.get('/api/reviews/user/order/:orderId/product/:productId', authenticateToken, (req, res) => {
+  const orderId = req.params.orderId;
+  const productId = req.params.productId;
+  const userId = req.user.userId;
+  
+  db.get(
+    'SELECT review_id FROM Reviews WHERE order_id = ? AND product_id = ? AND user_id = ?',
+    [orderId, productId, userId],
+    (err, review) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({ hasReviewed: !!review });
     }
   );
 });

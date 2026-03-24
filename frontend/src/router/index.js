@@ -131,6 +131,11 @@ const routes = [
     name: 'Addresses',
     component: () => import('../views/Addresses.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/album/:id/reviews',
+    name: 'AlbumReviews',
+    component: () => import('../views/Review.vue')
   }
 ]
 

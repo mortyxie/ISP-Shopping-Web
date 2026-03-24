@@ -19,6 +19,7 @@
       "about": "About"
     }
   },
+  "locale": "en",
   "home": {
     "latestUpdates": "Latest Updates",
     "viewMore": "View More",
@@ -29,7 +30,10 @@
     "hoursAgo": "{count} hour ago | {count} hours ago",
     "daysAgo": "{count} day ago | {count} days ago",
     "noMessages": "No messages yet",
-    "anonymous": "Anonymous User"
+    "anonymous": "Anonymous User",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page"
   },
   "profile": {
     "title": "My Profile",
@@ -331,8 +335,58 @@
     "tracklist": "Tracklist",
     "availableCopies": "Available Copies",
     "noProducts": "No copies available for this album",
-    "noItemsInCondition": "No copies in this condition"
+    "noItemsInCondition": "No copies in this condition",
+    "viewAllReviews": "View All Reviews",
+    "reviews": {
+      "title": "Customer Reviews",
+      "summary": {
+        "average": "Average Rating",
+        "total": "reviews"
+      },
+      "form": {
+        "title": "Write a Review",
+        "selectSku": "Select Purchased SKU",
+        "selectPlaceholder": "Please select",
+        "rating": "Rating",
+        "comment": "Your Review",
+        "commentPlaceholder": "Share your thoughts about this record...",
+        "submit": "Submit Review",
+        "submitting": "Submitting..."
+      },
+      "noReviews": "No reviews yet. Be the first to review!",
+      "merchantReply": "Seller's Response",
+      "noReply": "No response yet",
+      "purchaseInfo": "Purchase Info",
+      "sku": "SKU",
+      "productId": "product_id"
+    },
+    "conditions": {
+      "mint": "Mint",
+      "nearmint": "Near Mint",
+      "good": "Good",
+      "copies": "copies"
+    }
   },
+  
+  "review": {
+  "title": "Reviews",
+  "back": "Back",
+  "reviews": "reviews",
+  "noReviews": "No reviews yet. Purchase and leave your review!",
+  "version": "Version",
+  "rating": "Rating",
+  "reply": "Reply",
+  "replyToThread": "Reply to thread",
+  "replyPlaceholder": "Write your reply...",
+  "submitReply": "Submit Reply",
+  "submitting": "Submitting...",
+  "cancel": "Cancel",
+  "loginToReply": "Please login to reply",
+  "replyRequired": "Please enter your reply",
+  "replyTooLong": "Reply cannot exceed 500 characters",
+  "replySuccess": "Reply submitted successfully!",
+  "replyFailed": "Failed to submit reply. Please try again."
+},
   "category": {
     "albums": "albums",
     "title": "Categories",
@@ -375,7 +429,10 @@
     "loadMore": "Load More",
     "loading": "Loading...",
     "foundAlbums": "Found {count} albums",
-    "products": "items available"
+    "products": "items available",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page"
   },
   "orders": {
     "title": "My Orders",
@@ -420,40 +477,77 @@
     "noFilteredResultsDesc": "No orders match your current filter. Try changing your filter criteria."
   },
   "orderDetail": {
-    "title": "Order Details",
-    "backToList": "Back to Orders",
-    "backToSeller": "Back to Seller Dashboard",
-    "status": "Order Status",
-    "orderDate": "Order Date",
-    "shippingInfo": "Shipping Information",
-    "address": "Shipping Address",
-    "paymentMethod": "Payment Method",
-    "transactionId": "Transaction ID",
-    "paidAt": "Paid At",
-    "notSpecified": "Not specified",
-    "orderItems": "Order Items",
-    "subtotal": "Subtotal",
-    "shipping": "Shipping",
-    "total": "Total",
-    "payNow": "Pay Now",
-    "cancelOrder": "Cancel Order",
-    "confirmReceipt": "Confirm Receipt",
-    "confirmCancel": "Are you sure you want to cancel this order?",
-    "confirmReceiptMsg": "Have you received your order?",
-    "cancelFailed": "Failed to cancel order",
-    "confirmFailed": "Failed to confirm receipt",
-    "payFeature": "Payment feature coming soon!",
-    "timeline": {
-      "title": "Order Timeline",
-      "placed": "Order Placed",
-      "payment": "Payment Confirmed",
-      "shipped": "Shipped",
-      "delivered": "Delivered",
-      "cancelled": "Cancelled",
-      "pending": "Pending",
-      "notYet": "Not yet"
+  "title": "Order Details",
+  "backToList": "Back to Orders",
+  "backToSeller": "Back to Seller Dashboard",
+  "status": "Order Status",
+  "orderDate": "Order Date",
+  "shippingInfo": "Shipping Information",
+  "address": "Shipping Address",
+  "paymentMethod": "Payment Method",
+  "transactionId": "Transaction ID",
+  "paidAt": "Paid At",
+  "notSpecified": "Not specified",
+  "orderItems": "Order Items",
+  "subtotal": "Subtotal",
+  "shipping": "Shipping",
+  "total": "Total",
+  "payNow": "Pay Now",
+  "cancelOrder": "Cancel Order",
+  "confirmReceipt": "Confirm Receipt",
+  "confirmCancel": "Are you sure you want to cancel this order?",
+  "confirmReceiptMsg": "Have you received your order?",
+  "confirmPayment": "Proceed with payment?",
+  "paymentSuccess": "✅ Payment successful! Order confirmed.",
+  "paymentFailed": "❌ Payment failed. Please try again.",
+  "cancelSuccess": "Order cancelled successfully",
+  "cancelFailed": "Failed to cancel order",
+  "confirmSuccess": "Thank you! Order completed.",
+  "confirmFailed": "Failed to confirm receipt",
+  "payFeature": "Payment feature coming soon!",
+  "timeline": {
+    "title": "Order Timeline",
+    "placed": "Order Placed",
+    "payment": "Payment Confirmed",
+    "shipped": "Shipped",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "notYet": "Not yet"
+  },
+  "sellerView": "You are viewing this order as a seller.",
+  "review": {
+    "title": "Write a Review",
+    "selectProduct": "Select product to review",
+    "selectPlaceholder": "Select a product",
+    "reviewed": "Reviewed",
+    "reviewedCount": "Reviewed",
+    "version": "Version",
+    "rating": "Rating",
+    "comment": "Comment",
+    "commentPlaceholder": "Share your thoughts about this product...",
+    "submit": "Submit Review",
+    "submitting": "Submitting...",
+    "cancel": "Cancel",
+    "alreadyReviewed": "You have already reviewed this product",
+    "viewReview": "View Review",
+    "allReviewed": "You have reviewed all products in this order. Thank you for sharing!",
+    "viewReviews": "View Reviews",
+    "submitAllRemaining": "Submit Remaining Reviews",
+    "defaultComment": "Great product, highly recommended!",
+    "success": {
+      "reviewSubmitted": "Review submitted successfully!",
+      "allReviewed": "All reviews submitted successfully!",
+      "partialReviewed": "Successfully submitted {count}/{total} reviews"
     },
-    "sellerView": "You are viewing this order as a seller."
+    "errors": {
+      "noRating": "Please select a rating",
+      "noComment": "Please enter a comment",
+      "submitFailed": "Failed to submit review. Please try again.",
+      "noAlbumFound": "Album not found",
+      "loadFailed": "Failed to load review page"
+    }
+  }
   },
   "forum": {
     "placeholder": "Share your thoughts... (max 144 characters)",

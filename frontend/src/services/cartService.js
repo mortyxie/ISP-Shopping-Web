@@ -4,13 +4,30 @@ import { isAuthenticated } from './authService'
 
 // Get cart items
 export const getCart = async () => {
-  if (!isAuthenticated()) {
-    return []
-  }
+  const token = localStorage.getItem('token')
+  if (!token) return []
   
   try {
-    const data = await apiCall('/cart')
-    return Array.isArray(data) ? data : []
+    const response = await fetch('/api/cart', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    
+    if (response.ok) {
+      const items = await response.json()
+      // Ensure each item has all needed fields
+      return items.map(item => ({
+        id: item.id,
+        name: item.name,
+        artist: item.artist || '',
+        image: item.image,
+        condition: item.condition,
+        price: item.price,
+        is_active: item.is_active
+      }))
+    }
+    return []
   } catch (error) {
     console.error('Failed to fetch cart:', error)
     return []
