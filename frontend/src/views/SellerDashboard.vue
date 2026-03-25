@@ -26,6 +26,13 @@
         >
           {{ $t('seller.ordersTab') }}
         </button>
+        <button
+          class="tab-btn"
+          :class="{ active: activeTab === 'reports' }"
+          @click="activeTab = 'reports'"
+        >
+          {{ $t('seller.reportsTab') }}
+        </button>
       </div>
 
       <!-- Albums List with Products Inside -->
@@ -104,7 +111,7 @@
             <h4>{{ $t('seller.searchedProduct') }}</h4>
             <div class="product-summary">
               <div class="summary-item">
-                <strong>ID:</strong> {{ searchedProduct.product_id || searchedProduct.id }}
+                <strong>{{ $t('seller.id') }}:</strong> {{ searchedProduct.product_id || searchedProduct.id }}
               </div>
               <div class="summary-item">
                 <strong>{{ $t('seller.album') }}:</strong> {{ searchedProduct.album_title }}
@@ -425,6 +432,93 @@
           </div>
         </div>
       </div>
+
+      <!-- Reports Tab -->
+      <div v-if="activeTab === 'reports'" class="tab-content">
+        <h2 class="section-title">{{ $t('seller.reportsTab') }}</h2>
+
+        <!-- Week Range Selector -->
+        <div class="filter-section">
+          <div class="filter-group">
+            <label>{{ $t('seller.reports.weeks') }}</label>
+            <select v-model="reports.weeks" @change="loadReports" class="filter-select">
+              <option value="4">4 {{ $t('seller.reports.weeks') }}</option>
+              <option value="8">8 {{ $t('seller.reports.weeks') }}</option>
+              <option value="12">12 {{ $t('seller.reports.weeks') }}</option>
+              <option value="24">24 {{ $t('seller.reports.weeks') }}</option>
+              <option value="52">52 {{ $t('seller.reports.weeks') }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Feature 1: Total Sales Trend -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.totalTrend') }}</h3>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else class="chart-container">
+            <canvas ref="totalTrendChart" id="totalTrendChart"></canvas>
+          </div>
+          <div v-if="!reports.loading && reports.totalTrendData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
+        </div>
+
+        <!-- Feature 2: Genre Weekly Comparison -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.genreWeekly') }}</h3>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else class="chart-container">
+            <canvas ref="genreChart" id="genreChart"></canvas>
+          </div>
+          <div v-if="!reports.loading && reports.genreData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
+        </div>
+
+        <!-- Feature 3: Album Selector & Trend -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.albumTrend') }}</h3>
+          <div class="filter-group" style="margin-bottom: 20px;">
+            <label>{{ $t('seller.reports.selectAlbum') }}</label>
+            <select v-model="reports.selectedAlbumId" @change="loadAlbumReports" class="filter-select">
+              <option :value="null">{{ $t('seller.reports.allAlbums') }}</option>
+              <option v-for="album in reports.albumsList" :key="album.album_id" :value="album.album_id">
+                {{ album.title }} - {{ album.artist }}
+              </option>
+            </select>
+          </div>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else class="chart-container">
+            <canvas ref="albumChart" id="albumChart"></canvas>
+          </div>
+          <div v-if="!reports.loading && reports.albumData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
+        </div>
+
+        <!-- Feature 4: Product Sales Table -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.productSales') }}</h3>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else-if="reports.productData.length > 0" class="table-container">
+            <table class="sales-table">
+              <thead>
+                <tr>
+                  <th>{{ $t('seller.reports.album') }}</th>
+                  <th>{{ $t('seller.reports.condition') }}</th>
+                  <th>{{ $t('seller.reports.price') }}</th>
+                  <th>{{ $t('seller.reports.units') }}</th>
+                  <th>{{ $t('seller.reports.revenue') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="product in reports.productData" :key="`${product.week}-${product.product_id}`">
+                  <td>{{ product.album_title }}</td>
+                  <td>{{ product.condition }}</td>
+                  <td>¥{{ product.price.toFixed(2) }}</td>
+                  <td>{{ product.units_sold }}</td>
+                  <td>¥{{ (product.revenue || 0).toFixed(2) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="no-data">{{ $t('seller.reports.noData') }}</div>
+        </div>
+      </div>
     </div>
 
     <!-- Add/Edit Product Modal -->
@@ -525,9 +619,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import Chart from 'chart.js/auto'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -592,6 +687,23 @@ const orderFilter = ref({
   sortBy: 'created_at',
   sortOrder: 'desc'
 })
+
+// Reports state
+const reports = ref({
+  weeks: 12,
+  loading: false,
+  totalTrendData: [],
+  genreData: [],
+  albumData: [],
+  productData: [],
+  selectedAlbumId: null,
+  albumsList: []
+})
+
+// Chart instances
+let totalTrendChartInstance = null
+let genreChartInstance = null
+let albumChartInstance = null
 
 // Refs for file inputs
 const albumImageInput = ref(null)
@@ -668,6 +780,407 @@ const loadAlbumProducts = async (albumId) => {
     console.error('Failed to load album products:', error)
   }
 }
+
+// Load reports data
+const loadReports = async () => {
+  console.log('Loading reports...')
+  reports.value.loading = true
+  try {
+    const token = localStorage.getItem('token')
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Load total trend data (Feature 1)
+    console.log('Fetching total trend data...')
+    const totalTrendRes = await fetch(`/api/seller/reports/total-trend?weeks=${reports.value.weeks}`, { headers })
+    console.log('Total trend response status:', totalTrendRes.status)
+    if (totalTrendRes.ok) {
+      const data = await totalTrendRes.json()
+      console.log('Total trend data:', data)
+      reports.value.totalTrendData = data.data
+    } else {
+      console.error('Total trend API failed:', totalTrendRes.status)
+    }
+
+    // Load genre weekly data (Feature 2)
+    console.log('Fetching genre data...')
+    const genreRes = await fetch(`/api/seller/reports/genre-weekly?weeks=${reports.value.weeks}`, { headers })
+    console.log('Genre response status:', genreRes.status)
+    if (genreRes.ok) {
+      const data = await genreRes.json()
+      console.log('Genre data:', data)
+      reports.value.genreData = data.data
+    } else {
+      console.error('Genre API failed:', genreRes.status)
+    }
+
+    // Load albums list
+    console.log('Fetching albums list...')
+    const albumsRes = await fetch('/api/seller/reports/albums', { headers })
+    console.log('Albums response status:', albumsRes.status)
+    if (albumsRes.ok) {
+      const data = await albumsRes.json()
+      console.log('Albums list:', data)
+      reports.value.albumsList = data.data
+    } else {
+      console.error('Albums API failed:', albumsRes.status)
+    }
+
+    // Load album and product data if album is selected
+    if (reports.value.selectedAlbumId) {
+      await loadAlbumReports()
+    }
+
+  } catch (error) {
+    console.error('Failed to load reports:', error)
+  } finally {
+    reports.value.loading = false
+    console.log('Reports loading complete')
+    console.log('Loading state:', reports.value.loading)
+    console.log('Canvases in DOM:', document.querySelectorAll('canvas'))
+
+    // Wait for DOM to fully update after loading is false
+    await nextTick()
+    console.log('After nextTick, canvases:', document.querySelectorAll('canvas'))
+    // Additional delay to ensure DOM is rendered
+    await new Promise(resolve => setTimeout(resolve, 200))
+    console.log('After delay, canvases:', document.querySelectorAll('canvas'))
+    // Render charts after data is loaded
+    await renderCharts()
+  }
+}
+
+// Load album specific reports (Feature 3 & 4)
+const loadAlbumReports = async () => {
+  if (!reports.value.selectedAlbumId) {
+    reports.value.albumData = []
+    reports.value.productData = []
+    return
+  }
+
+  // Don't set loading for other charts - use a flag specifically for album loading
+  try {
+    const token = localStorage.getItem('token')
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Load album weekly data (Feature 3)
+    const albumRes = await fetch(`/api/seller/reports/album-weekly?weeks=${reports.value.weeks}&album_id=${reports.value.selectedAlbumId}`, { headers })
+    if (albumRes.ok) {
+      const data = await albumRes.json()
+      reports.value.albumData = data.data
+    }
+
+    // Load product weekly data (Feature 4)
+    const productRes = await fetch(`/api/seller/reports/product-weekly?weeks=${reports.value.weeks}&album_id=${reports.value.selectedAlbumId}`, { headers })
+    if (productRes.ok) {
+      const data = await productRes.json()
+      reports.value.productData = data.data
+    }
+
+    // Wait for DOM to update and render album chart
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await renderAlbumChart()
+
+  } catch (error) {
+    console.error('Failed to load album reports:', error)
+  }
+}
+
+// Render all charts (total trend and genre only)
+const renderCharts = async () => {
+  console.log('Rendering all charts...')
+  console.log('totalTrendData:', reports.value.totalTrendData)
+  console.log('genreData:', reports.value.genreData)
+  console.log('albumData:', reports.value.albumData)
+  await renderTotalTrendChart()
+  await renderGenreChart()
+  // Note: Album chart is rendered separately in loadAlbumReports()
+}
+
+// Render total trend chart (Feature 1)
+const renderTotalTrendChart = async () => {
+  console.log('Rendering total trend chart...')
+  console.log('DOM contains totalTrendChart?', document.getElementById('totalTrendChart'))
+  const canvas = document.getElementById('totalTrendChart')
+  if (!canvas) {
+    console.log('Canvas not found for totalTrendChart')
+    console.log('Available canvases:', document.querySelectorAll('canvas'))
+    return
+  }
+
+  if (totalTrendChartInstance) {
+    totalTrendChartInstance.destroy()
+  }
+
+  const data = reports.value.totalTrendData
+  console.log('Total trend chart data:', data)
+
+  const ctx = canvas.getContext('2d')
+
+  // Handle empty data - render empty chart with no data message
+  if (!data || data.length === 0) {
+    console.log('No data to render total trend chart')
+    totalTrendChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: true,
+            text: t('seller.reports.noData'),
+            color: '#999'
+          }
+        }
+      }
+    })
+    return
+  }
+
+  totalTrendChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.week_start),
+      datasets: [{
+        label: t('seller.reports.units'),
+        data: data.map(d => d.units_sold),
+        borderColor: '#3498db',
+        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+        fill: true,
+        tension: 0.4
+      }, {
+        label: t('seller.reports.revenue'),
+        data: data.map(d => d.revenue),
+        borderColor: '#2ecc71',
+        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+        fill: true,
+        tension: 0.4,
+        yAxisID: 'y1'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          position: 'left',
+          title: { display: true, text: t('seller.reports.units') }
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: t('seller.reports.revenue') }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.parsed.y}`
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
+// Render genre weekly chart (Feature 2)
+const renderGenreChart = async () => {
+  console.log('Rendering genre chart...')
+  const canvas = document.getElementById('genreChart')
+  if (!canvas) {
+    console.log('Canvas not found for genreChart')
+    return
+  }
+
+  if (genreChartInstance) {
+    genreChartInstance.destroy()
+  }
+
+  const data = reports.value.genreData
+  console.log('Genre chart data:', data)
+
+  const ctx = canvas.getContext('2d')
+
+  // Color palette for genres
+  const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e']
+
+  // Aggregate data by genre across all weeks (total units sold per genre)
+  const genreTotals = new Map()
+  data.forEach(d => {
+    if (!genreTotals.has(d.genre)) {
+      genreTotals.set(d.genre, 0)
+    }
+    genreTotals.set(d.genre, genreTotals.get(d.genre) + d.units_sold)
+  })
+
+  // Handle empty data - show pie chart with no data message
+  if (!data || data.length === 0) {
+    genreChartInstance = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: [t('seller.reports.noData')],
+        datasets: [{
+          data: [1],
+          backgroundColor: ['#e0e0e0'],
+          borderColor: ['#e0e0e0'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          title: {
+            display: true,
+            text: t('seller.reports.genreWeekly'),
+            font: { size: 16 }
+          }
+        }
+      }
+    })
+    return
+  }
+
+  genreChartInstance = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: Array.from(genreTotals.keys()),
+      datasets: [{
+        data: Array.from(genreTotals.values()),
+        backgroundColor: colors,
+        borderColor: colors,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: t('seller.reports.genreWeekly'),
+          font: { size: 16 }
+        }
+      }
+    }
+  })
+}
+
+// Render album chart (Feature 3)
+const renderAlbumChart = async () => {
+  console.log('Rendering album chart...')
+  const canvas = document.getElementById('albumChart')
+  if (!canvas) {
+    console.log('Canvas not found for albumChart')
+    return
+  }
+
+  if (albumChartInstance) {
+    albumChartInstance.destroy()
+  }
+
+  const data = reports.value.albumData
+  console.log('Album chart data:', data)
+
+  const ctx = canvas.getContext('2d')
+
+  // Handle empty data - render empty chart with no data message
+  if (!data || data.length === 0) {
+    console.log('No data to render album chart')
+    albumChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: true,
+            text: t('seller.reports.noData'),
+            color: '#999'
+          }
+        }
+      }
+    })
+    return
+  }
+
+  albumChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [...new Set(data.map(d => d.week_start))].sort(),
+      datasets: [{
+        label: t('seller.reports.units'),
+        data: data.map(d => d.units_sold),
+        borderColor: '#9b59b6',
+        backgroundColor: 'rgba(155, 89, 182, 0.1)',
+        fill: true,
+        tension: 0.4
+      }, {
+        label: t('seller.reports.revenue'),
+        data: data.map(d => d.revenue),
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        fill: true,
+        tension: 0.4,
+        yAxisID: 'y1'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          position: 'left',
+          title: { display: true, text: t('seller.reports.units') }
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: t('seller.reports.revenue') }
+        }
+      },
+      plugins: {
+        legend: { position: 'top' }
+      }
+    }
+  })
+}
+
+// Watch for tab changes to load reports when switching to reports tab
+watch(activeTab, async (newTab) => {
+  console.log('Tab changed to:', newTab)
+  if (newTab === 'reports') {
+    // Wait for DOM to render the reports tab content
+    await nextTick()
+    // Additional delay to ensure DOM is fully rendered
+    await new Promise(resolve => setTimeout(resolve, 200))
+    console.log('DOM after delay, canvases:', document.querySelectorAll('canvas'))
+    loadReports()
+  }
+})
 
 // Check if user is seller
 onMounted(() => {
@@ -2068,6 +2581,91 @@ const formatDateTime = (dateString) => {
   text-align: center;
   padding: var(--spacing-xxl);
   color: var(--color-text-secondary);
+  background: var(--color-bg-light);
+  border-radius: var(--border-radius-md);
+}
+
+/* Reports Section Styles */
+.report-section {
+  background: var(--color-bg);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.report-section h3 {
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: var(--spacing-sm);
+}
+
+.chart-container {
+  background: white;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  min-height: 400px;
+  position: relative;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-top: var(--spacing-md);
+}
+
+.sales-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+}
+
+.sales-table thead {
+  background: var(--color-primary);
+  color: white;
+}
+
+.sales-table th {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.sales-table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-base);
+}
+
+.sales-table tbody tr:hover {
+  background-color: var(--color-bg-light);
+}
+
+.sales-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.sales-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.loading {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+}
+
+.no-data {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
   background: var(--color-bg-light);
   border-radius: var(--border-radius-md);
 }

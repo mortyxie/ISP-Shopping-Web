@@ -2593,6 +2593,332 @@ app.get('/api/albums/:id/with-price-range', (req, res) => {
     );
 });
 
+// ==================== SELLER REPORTS ====================
+
+// Feature 1: Total weekly sales trend (all albums combined)
+app.get('/api/seller/reports/total-trend', authenticateToken, requireSeller, (req, res) => {
+  let weeks = parseInt(req.query.weeks);
+  if (isNaN(weeks)) weeks = 12;
+  weeks = Math.max(Math.min(weeks, 52), 4);
+  const days = weeks * 7;
+
+  console.log(`Total trend: weeks=${weeks}, days=${days}`);
+
+  // First, get cutoff date string
+  const dateFilter = `-${days} days`;
+  console.log('Date filter:', dateFilter);
+
+  const query = `
+    SELECT
+      strftime('%Y-%W', o.created_at) as week,
+      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
+      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
+      COUNT(oi.order_item_id) as units_sold,
+      SUM(oi.quantity) as total_quantity,
+      SUM(oi.quantity * oi.price_at_purchase) as revenue,
+      COUNT(DISTINCT o.order_id) as orders
+    FROM Orders o
+    JOIN Order_Items oi ON o.order_id = oi.order_id
+    WHERE o.status IN ('paid', 'shipped', 'completed')
+      AND o.created_at >= date('now', '${dateFilter}')
+    GROUP BY week
+    ORDER BY week ASC
+  `;
+
+  console.log('Total trend query:', query);
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching total trend:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Total trend result rows:', rows.length);
+    console.log('Total trend result data:', rows);
+    res.json({ success: true, data: rows });
+  });
+});
+
+// Feature 2: Weekly sales comparison by genre
+app.get('/api/seller/reports/genre-weekly', authenticateToken, requireSeller, (req, res) => {
+  let weeks = parseInt(req.query.weeks);
+  if (isNaN(weeks)) weeks = 12;
+  weeks = Math.max(Math.min(weeks, 52), 4);
+  const days = weeks * 7;
+
+  console.log(`Genre weekly: weeks=${weeks}, days=${days}`);
+
+  const dateFilter = `-${days} days`;
+  console.log('Date filter:', dateFilter);
+
+  const query = `
+    SELECT
+      strftime('%Y-%W', o.created_at) as week,
+      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
+      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
+      a.genre,
+      COUNT(oi.order_item_id) as units_sold,
+      SUM(oi.quantity) as total_quantity,
+      SUM(oi.quantity * oi.price_at_purchase) as revenue
+    FROM Orders o
+    JOIN Order_Items oi ON o.order_id = oi.order_id
+    JOIN Products p ON oi.product_id = p.product_id
+    JOIN Albums a ON p.album_id = a.album_id
+    WHERE o.status IN ('paid', 'shipped', 'completed')
+      AND o.created_at >= date('now', '${dateFilter}')
+      AND a.genre IS NOT NULL
+      AND a.genre != ''
+    GROUP BY week, a.genre
+    ORDER BY week ASC, a.genre
+  `;
+
+  console.log('Genre weekly query:', query);
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching genre weekly data:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Genre weekly result rows:', rows.length);
+    console.log('Genre weekly result data:', rows);
+    res.json({ success: true, data: rows });
+  });
+});
+
+// Feature 3: Weekly sales for specific albums
+app.get('/api/seller/reports/album-weekly', authenticateToken, requireSeller, (req, res) => {
+  let weeks = parseInt(req.query.weeks);
+  if (isNaN(weeks)) weeks = 12;
+  weeks = Math.max(Math.min(weeks, 52), 4);
+  const days = weeks * 7;
+  const albumId = req.query.album_id ? parseInt(req.query.album_id) : null;
+
+  console.log(`Album weekly: weeks=${weeks}, days=${days}, albumId=${albumId}`);
+
+  const dateFilter = `-${days} days`;
+  console.log('Date filter:', dateFilter);
+
+  let query = `
+    SELECT
+      strftime('%Y-%W', o.created_at) as week,
+      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
+      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
+      a.album_id,
+      a.title,
+      a.artist,
+      COUNT(oi.order_item_id) as units_sold,
+      SUM(oi.quantity) as total_quantity,
+      SUM(oi.quantity * oi.price_at_purchase) as revenue
+    FROM Orders o
+    JOIN Order_Items oi ON o.order_id = oi.order_id
+    JOIN Products p ON oi.product_id = p.product_id
+    JOIN Albums a ON p.album_id = a.album_id
+    WHERE o.status IN ('paid', 'shipped', 'completed')
+      AND o.created_at >= date('now', '${dateFilter}')
+  `;
+
+  const params = [];
+  if (albumId) {
+    query += ` AND a.album_id = ?`;
+    params.push(albumId);
+  }
+
+  query += `
+    GROUP BY week, a.album_id
+    ORDER BY week ASC, a.title
+  `;
+
+  console.log('Album weekly query:', query);
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Error fetching album weekly data:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Album weekly result rows:', rows.length);
+    console.log('Album weekly result data:', rows);
+    res.json({ success: true, data: rows });
+  });
+});
+
+// Feature 4: Weekly sales for products within albums
+app.get('/api/seller/reports/product-weekly', authenticateToken, requireSeller, (req, res) => {
+  let weeks = parseInt(req.query.weeks);
+  if (isNaN(weeks)) weeks = 12;
+  weeks = Math.max(Math.min(weeks, 52), 4);
+  const days = weeks * 7;
+  const albumId = req.query.album_id ? parseInt(req.query.album_id) : null;
+
+  console.log(`Product weekly: weeks=${weeks}, days=${days}, albumId=${albumId}`);
+
+  const dateFilter = `-${days} days`;
+  console.log('Date filter:', dateFilter);
+
+  let query = `
+    SELECT
+      strftime('%Y-%W', o.created_at) as week,
+      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
+      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
+      p.product_id,
+      p.condition,
+      p.price,
+      a.album_id,
+      a.title as album_title,
+      a.artist,
+      COUNT(oi.order_item_id) as units_sold,
+      SUM(oi.quantity) as total_quantity,
+      SUM(oi.quantity * oi.price_at_purchase) as revenue
+    FROM Orders o
+    JOIN Order_Items oi ON o.order_id = oi.order_id
+    JOIN Products p ON oi.product_id = p.product_id
+    JOIN Albums a ON p.album_id = a.album_id
+    WHERE o.status IN ('paid', 'shipped', 'completed')
+      AND o.created_at >= date('now', '${dateFilter}')
+  `;
+
+  const params = [];
+  if (albumId) {
+    query += ` AND a.album_id = ?`;
+    params.push(albumId);
+  }
+
+  query += `
+    GROUP BY week, p.product_id
+    ORDER BY week ASC, a.title, p.condition
+  `;
+
+  console.log('Product weekly query:', query);
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Error fetching product weekly data:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Product weekly result rows:', rows.length);
+    console.log('Product weekly result data:', rows);
+    res.json({ success: true, data: rows });
+  });
+});
+
+// Helper endpoint to get list of all albums (for dropdowns)
+app.get('/api/seller/reports/albums', authenticateToken, requireSeller, (req, res) => {
+  const query = `
+    SELECT
+      a.album_id,
+      a.title,
+      a.artist,
+      a.genre,
+      COUNT(DISTINCT p.product_id) as product_count,
+      MIN(p.price) as min_price,
+      MAX(p.price) as max_price
+    FROM Albums a
+    LEFT JOIN Products p ON a.album_id = p.album_id
+    WHERE p.is_active = 1 OR p.product_id IS NULL
+    GROUP BY a.album_id
+    ORDER BY a.title
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching albums list:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true, data: rows });
+  });
+});
+
+// Debug endpoint to check orders
+app.get('/api/seller/reports/debug-orders', authenticateToken, requireSeller, (req, res) => {
+  // First, let's check the date calculation
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - 365);
+  console.log('Debug: Checking orders since:', cutoffDate.toISOString());
+
+  const query = `
+    SELECT
+      o.order_id,
+      o.status,
+      o.created_at,
+      o.total_amount,
+      COUNT(oi.order_item_id) as item_count
+    FROM Orders o
+    LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+    WHERE o.created_at >= date('now', '-365 days')
+    GROUP BY o.order_id
+    ORDER BY o.created_at DESC
+    LIMIT 20
+  `;
+
+  console.log('Debug orders query:', query);
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching debug orders:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Debug orders:', rows);
+    console.log('Debug orders count:', rows.length);
+
+    // Also test a simpler query to count all completed orders
+    const simpleQuery = `
+      SELECT COUNT(*) as count, status
+      FROM Orders
+      WHERE status IN ('paid', 'shipped', 'completed')
+      GROUP BY status
+    `;
+    db.all(simpleQuery, [], (err2, statusRows) => {
+      if (err2) {
+        console.error('Error fetching status count:', err2);
+      } else {
+        console.log('Orders by status:', statusRows);
+      }
+    });
+
+    res.json({ success: true, data: rows });
+  });
+});
+
+// Simple test endpoint to verify query works
+app.get('/api/seller/reports/test-query', authenticateToken, requireSeller, (req, res) => {
+  // Test 1: Simple query for completed orders in last 90 days
+  const simpleQuery = `
+    SELECT COUNT(*) as count
+    FROM Orders o
+    WHERE o.status = 'completed'
+      AND o.created_at >= date('now', '-90 days')
+  `;
+
+  db.get(simpleQuery, [], (err, row) => {
+    if (err) {
+      console.error('Error in test query:', err);
+      return res.status(500).json({ error: err.message });
+    }
+    console.log('Test 1 - Completed orders in 90 days:', row);
+
+    // Test 2: Query with JOIN
+    const joinQuery = `
+      SELECT COUNT(*) as count
+      FROM Orders o
+      JOIN Order_Items oi ON o.order_id = oi.order_id
+      WHERE o.status = 'completed'
+        AND o.created_at >= date('now', '-90 days')
+    `;
+
+    db.get(joinQuery, [], (err2, row2) => {
+      if (err2) {
+        console.error('Error in join query:', err2);
+        return res.status(500).json({ error: err2.message });
+      }
+      console.log('Test 2 - Completed orders with JOIN:', row2);
+
+      res.json({
+        success: true,
+        test1: row,
+        test2: row2
+      });
+    });
+  });
+});
+
 // ==================== HEALTH CHECK ====================
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'Server is running' });

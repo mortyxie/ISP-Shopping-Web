@@ -15,6 +15,7 @@
       "home": "Home",
       "category": "Category",
       "forum": "Forum",
+      "sellerDashboard": "Seller Dashboard",
       "help": "Help",
       "about": "About"
     }
@@ -566,6 +567,7 @@
     "title": "Seller Dashboard",
     "notSeller": "You are not a seller",
     "pleaseLogin": "Please login with a seller account",
+    "id": "ID",
     "noPermission": "Access denied",
     "requireSeller": "Seller permission required",
     "welcome": "Welcome back, {username}",
@@ -714,7 +716,23 @@
       "completed": "Completed:",
       "cancelled": "Cancelled:"
     },
-    "emptyOrders": "No orders found matching the filter."
+    "emptyOrders": "No orders found matching the filter.",
+    "reportsTab": "Reports",
+    "reports": {
+      "weeks": "Weeks",
+      "totalTrend": "Total Sales Trend (All Albums)",
+      "genreWeekly": "Genre Weekly Sales Comparison",
+      "albumTrend": "Album Weekly Sales Trend",
+      "productSales": "Product Sales by Week",
+      "selectAlbum": "Select Album",
+      "allAlbums": "All Albums",
+      "album": "Album",
+      "condition": "Condition",
+      "price": "Price",
+      "units": "Units Sold",
+      "revenue": "Revenue",
+      "noData": "No data available for the selected period."
+    }
   },
   "countries": {
     "china": "China",

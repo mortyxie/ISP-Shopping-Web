@@ -15,6 +15,7 @@
       "home": "首頁",
       "category": "分類瀏覽",
       "forum": "論壇",
+      "sellerDashboard": "賣家中心",
       "help": "幫助中心",
       "about": "關於我們"
     }
@@ -569,6 +570,7 @@
     "title": "商家端",
     "notSeller": "您不是商家",
     "pleaseLogin": "請登錄並使用商家賬號訪問",
+    "id": "ID",
     "noPermission": "訪問被拒絕",
     "requireSeller": "需要商家權限才能訪問此頁面",
     "welcome": "歡迎回來，{username}",
@@ -717,7 +719,23 @@
       "completed": "完成時間：",
       "cancelled": "取消時間："
     },
-    "emptyOrders": "沒有找到符合條件的訂單。"
+    "emptyOrders": "沒有找到符合條件的訂單。",
+    "reportsTab": "銷售報告",
+    "reports": {
+      "weeks": "週",
+      "totalTrend": "總銷量趨勢（所有專輯）",
+      "genreWeekly": "類別週銷量對比",
+      "albumTrend": "專輯週銷量趨勢",
+      "productSales": "產品週銷量詳情",
+      "selectAlbum": "選擇專輯",
+      "allAlbums": "所有專輯",
+      "album": "專輯",
+      "condition": "成色",
+      "price": "價格",
+      "units": "銷量",
+      "revenue": "收入",
+      "noData": "所選時間段沒有數據。"
+    }
   },
   "countries": {
     "china": "中國",
