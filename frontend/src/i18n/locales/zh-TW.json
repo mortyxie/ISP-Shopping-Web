@@ -734,7 +734,14 @@
       "price": "價格",
       "units": "銷量",
       "revenue": "收入",
-      "noData": "所選時間段沒有數據。"
+      "noData": "所選時間段沒有數據。",
+      "weeklyComparison": "週對比",
+      "currentWeekTotalSales": "本週總銷量",
+      "currentWeekTotalRevenue": "本週總收入",
+      "salesChange": "銷量變化",
+      "revenueChange": "收入變化",
+      "previousWeek": "上週",
+      "noWeeklyComparisonData": "暫無週對比數據"
     }
   },
   "countries": {

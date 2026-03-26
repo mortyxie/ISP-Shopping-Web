@@ -731,7 +731,14 @@
       "price": "Price",
       "units": "Units Sold",
       "revenue": "Revenue",
-      "noData": "No data available for the selected period."
+      "noData": "No data available for the selected period.",
+      "weeklyComparison": "Weekly Comparison",
+      "currentWeekTotalSales": "Current Week Total Sales",
+      "currentWeekTotalRevenue": "Current Week Total Revenue",
+      "salesChange": "Sales Change",
+      "revenueChange": "Revenue Change",
+      "previousWeek": "Previous Week",
+      "noWeeklyComparisonData": "No weekly comparison data available"
     }
   },
   "countries": {

@@ -451,6 +451,59 @@
           </div>
         </div>
 
+        <!-- Weekly Comparison Card -->
+        <div class="report-section weekly-comparison-card">
+          <h3>{{ $t('seller.reports.weeklyComparison') }}</h3>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else-if="reports.weeklyComparison.comparison" class="comparison-container">
+            <!-- Current Week Stats -->
+            <div class="comparison-block current-week">
+              <div class="stat-row">
+                <span class="stat-label">{{ $t('seller.reports.currentWeekTotalSales') }}</span>
+                <span class="stat-value">{{ reports.weeklyComparison.comparison.current.units_sold }}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">{{ $t('seller.reports.currentWeekTotalRevenue') }}</span>
+                <span class="stat-value">¥{{ (reports.weeklyComparison.comparison.current.revenue || 0).toFixed(2) }}</span>
+              </div>
+            </div>
+
+            <!-- Comparison Indicators -->
+            <div class="comparison-indicators">
+              <div class="indicator-item" :class="getChangeClass(reports.weeklyComparison.comparison.unitsSoldChange)">
+                <span class="indicator-label">{{ $t('seller.reports.salesChange') }}</span>
+                <span class="indicator-value">
+                  <span v-if="reports.weeklyComparison.comparison.unitsSoldChange > 0">+</span>
+                  {{ reports.weeklyComparison.comparison.unitsSoldChange }}%
+                  <span v-if="reports.weeklyComparison.comparison.unitsSoldChange > 0">↑</span>
+                  <span v-else-if="reports.weeklyComparison.comparison.unitsSoldChange < 0">↓</span>
+                </span>
+              </div>
+              <div class="indicator-item" :class="getChangeClass(reports.weeklyComparison.comparison.revenueChange)">
+                <span class="indicator-label">{{ $t('seller.reports.revenueChange') }}</span>
+                <span class="indicator-value">
+                  <span v-if="reports.weeklyComparison.comparison.revenueChange > 0">+</span>
+                  {{ reports.weeklyComparison.comparison.revenueChange }}%
+                  <span v-if="reports.weeklyComparison.comparison.revenueChange > 0">↑</span>
+                  <span v-else-if="reports.weeklyComparison.comparison.revenueChange < 0">↓</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Previous Week Stats (Optional Reference) -->
+            <div class="comparison-block previous-week">
+              <div class="stat-row small">
+                <span class="stat-label">{{ $t('seller.reports.previousWeek') }}:</span>
+                <span class="stat-value-small">
+                  {{ reports.weeklyComparison.comparison.previous.units_sold }} {{ $t('seller.reports.units') }},
+                  ¥{{ (reports.weeklyComparison.comparison.previous.revenue || 0).toFixed(2) }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="!reports.loading" class="no-data">{{ $t('seller.reports.noWeeklyComparisonData') }}</div>
+        </div>
+
         <!-- Feature 1: Total Sales Trend -->
         <div class="report-section">
           <h3>{{ $t('seller.reports.totalTrend') }}</h3>
@@ -697,7 +750,19 @@ const reports = ref({
   albumData: [],
   productData: [],
   selectedAlbumId: null,
-  albumsList: []
+  albumsList: [],
+  weeklyComparison: {
+    current: { units_sold: 0, revenue: 0 },
+    previous: { units_sold: 0, revenue: 0 },
+    comparison: {
+      current: { units_sold: 0, revenue: 0 },
+      previous: { units_sold: 0, revenue: 0 },
+      unitsSoldChange: 0,
+      revenueChange: 0
+    },
+    loading: false,
+    error: null
+  }
 })
 
 // Chart instances
@@ -732,6 +797,13 @@ const formatDate = (dateString) => {
 // Helper: Handle image error
 const handleImageError = (e) => {
   e.target.src = 'https://via.placeholder.com/50?text=No+Image'
+}
+
+// Helper: Get CSS class for change indicator
+const getChangeClass = (change) => {
+  if (change > 0) return 'positive'
+  if (change < 0) return 'negative'
+  return 'neutral'
 }
 
 // Toggle album products visibility
@@ -814,6 +886,22 @@ const loadReports = async () => {
       reports.value.genreData = data.data
     } else {
       console.error('Genre API failed:', genreRes.status)
+    }
+
+    // Load weekly comparison data
+    console.log('Fetching weekly comparison data...')
+    const comparisonRes = await fetch(`/api/seller/reports/weekly-comparison?weeks=${reports.value.weeks}`, { headers })
+    console.log('Weekly comparison response status:', comparisonRes.status)
+    if (comparisonRes.ok) {
+      const data = await comparisonRes.json()
+      console.log('Weekly comparison data:', data)
+      reports.value.weeklyComparison.current = data.data.currentWeek
+      reports.value.weeklyComparison.previous = data.data.previousWeek
+      reports.value.weeklyComparison.comparison = data.data.comparison
+    } else {
+      console.error('Weekly comparison API failed:', comparisonRes.status)
+      const errorText = await comparisonRes.text()
+      console.error('Error response:', errorText)
     }
 
     // Load albums list
@@ -2702,6 +2790,135 @@ const formatDateTime = (dateString) => {
   
   .order-details {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Weekly Comparison Card Styles */
+.weekly-comparison-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.comparison-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.comparison-block {
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.comparison-block.current-week {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.comparison-block.previous-week {
+  background: #f5f5f5;
+  padding: 10px 15px;
+}
+
+.comparison-block .stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.comparison-block .stat-row:last-child {
+  margin-bottom: 0;
+}
+
+.comparison-block .stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.comparison-block .stat-value {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.comparison-block .stat-row.small {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.comparison-block .stat-value-small {
+  font-size: 13px;
+  color: #666;
+}
+
+.comparison-indicators {
+  display: flex;
+  gap: 15px;
+}
+
+.indicator-item {
+  flex: 1;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.indicator-item.positive {
+  background: #e8f5e9;
+  border: 2px solid #4caf50;
+}
+
+.indicator-item.negative {
+  background: #ffebee;
+  border: 2px solid #f44336;
+}
+
+.indicator-item.neutral {
+  background: #f5f5f5;
+  border: 2px solid #9e9e9e;
+}
+
+.indicator-label {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.indicator-value {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.indicator-item.positive .indicator-value {
+  color: #4caf50;
+}
+
+.indicator-item.negative .indicator-value {
+  color: #f44336;
+}
+
+.indicator-item.neutral .indicator-value {
+  color: #9e9e9e;
+}
+
+/* Responsive Design for Weekly Comparison */
+@media (max-width: 768px) {
+  .comparison-indicators {
+    flex-direction: column;
+  }
+
+  .comparison-block .stat-value {
+    font-size: 22px;
+  }
+
+  .indicator-value {
+    font-size: 20px;
   }
 }
 </style>
