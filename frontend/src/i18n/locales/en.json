@@ -738,7 +738,14 @@
       "salesChange": "Sales Change",
       "revenueChange": "Revenue Change",
       "previousWeek": "Previous Week",
-      "noWeeklyComparisonData": "No weekly comparison data available"
+      "noWeeklyComparisonData": "No weekly comparison data available",
+      "genreComparison": "Genre Sales Comparison",
+      "genre": "Genre",
+      "currentWeekSales": "This Week",
+      "currentWeekRevenue": "Revenue",
+      "albumRanking": "Album Sales Ranking",
+      "bestSelling": "Best Selling",
+      "worstSelling": "Worst Selling"
     }
   },
   "countries": {

@@ -741,7 +741,14 @@
       "salesChange": "銷量變化",
       "revenueChange": "收入變化",
       "previousWeek": "上週",
-      "noWeeklyComparisonData": "暫無週對比數據"
+      "noWeeklyComparisonData": "暫無週對比數據",
+      "genreComparison": "類別銷售對比",
+      "genre": "類別",
+      "currentWeekSales": "本週",
+      "currentWeekRevenue": "收入",
+      "albumRanking": "專輯銷售排行",
+      "bestSelling": "最暢銷",
+      "worstSelling": "最不暢銷"
     }
   },
   "countries": {

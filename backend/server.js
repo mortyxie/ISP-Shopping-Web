@@ -2944,7 +2944,7 @@ app.get('/api/seller/reports/weekly-comparison', authenticateToken, requireSelle
         }
         console.log('Order items count:', itemRow.count);
 
-        // Now run the main query
+        // Now run the main query for total sales
         const query = `
           SELECT
             strftime('%Y-%W', o.created_at) as week,
@@ -2960,6 +2960,48 @@ app.get('/api/seller/reports/weekly-comparison', authenticateToken, requireSelle
 
         console.log('Weekly comparison query:', query);
 
+        // Query for genre-level data
+        const genreQuery = `
+          SELECT
+            a.genre,
+            strftime('%Y-%W', o.created_at) as week,
+            COUNT(oi.order_item_id) as units_sold,
+            SUM(oi.quantity * oi.price_at_purchase) as revenue
+          FROM Orders o
+          JOIN Order_Items oi ON o.order_id = oi.order_id
+          JOIN Products p ON oi.product_id = p.product_id
+          JOIN Albums a ON p.album_id = a.album_id
+          WHERE o.status IN ('paid', 'shipped', 'completed')
+            AND o.created_at >= date('now', '-' || ${days} || ' days')
+            AND a.genre IS NOT NULL
+          GROUP BY a.genre, week
+          ORDER BY a.genre, week ASC
+        `;
+
+        console.log('Genre comparison query:', genreQuery);
+
+        // Query for album sales ranking (current week only)
+        const albumRankingQuery = `
+          SELECT
+            a.album_id,
+            a.title,
+            a.artist,
+            a.cover_image_url,
+            COUNT(oi.order_item_id) as units_sold,
+            SUM(oi.quantity * oi.price_at_purchase) as revenue
+          FROM Orders o
+          JOIN Order_Items oi ON o.order_id = oi.order_id
+          JOIN Products p ON oi.product_id = p.product_id
+          JOIN Albums a ON p.album_id = a.album_id
+          WHERE o.status IN ('paid', 'shipped', 'completed')
+            AND o.created_at >= date('now', '-' || '7' || ' days')
+          GROUP BY a.album_id
+          ORDER BY units_sold DESC, revenue DESC
+          LIMIT 10
+        `;
+
+        console.log('Album ranking query:', albumRankingQuery);
+
         db.all(query, [], (err, rows) => {
           if (err) {
             console.error('Error fetching weekly comparison:', err);
@@ -2972,7 +3014,7 @@ app.get('/api/seller/reports/weekly-comparison', authenticateToken, requireSelle
 
           if (!rows || rows.length === 0) {
             console.log('No orders found in date range');
-            return res.json({ success: true, data: { currentWeek: null, previousWeek: null, comparison: null } });
+            return res.json({ success: true, data: { currentWeek: null, previousWeek: null, comparison: null, genreComparison: [] } });
           }
 
           // Since rows are ordered by week ASC, the last row is the most recent week (current week)
@@ -3004,7 +3046,78 @@ app.get('/api/seller/reports/weekly-comparison', authenticateToken, requireSelle
           console.log('Current week:', currentWeek);
           console.log('Previous week:', previousWeek);
 
-          res.json({ success: true, data: { currentWeek, previousWeek, comparison } });
+          // Fetch genre-level data
+          db.all(genreQuery, [], (genreErr, genreRows) => {
+            if (genreErr) {
+              console.error('Error fetching genre comparison:', genreErr);
+              return res.status(500).json({ error: genreErr.message });
+            }
+
+            console.log('Genre comparison query returned rows:', genreRows.length);
+
+            const genreMap = new Map();
+            genreRows.forEach(row => {
+              if (!genreMap.has(row.genre)) {
+                genreMap.set(row.genre, {
+                  genre: row.genre,
+                  weeks: []
+                });
+              }
+              genreMap.get(row.genre).weeks.push(row);
+            });
+
+            // Calculate genre comparisons
+            const genreComparison = [];
+            genreMap.forEach(genreData => {
+              const weeks = genreData.weeks;
+              const currentWeekData = weeks[weeks.length - 1];
+              const previousWeekData = weeks.length > 1 ? weeks[weeks.length - 2] : null;
+
+              const result = {
+                genre_name: genreData.genre,
+                current: {
+                  units_sold: currentWeekData.units_sold || 0,
+                  revenue: currentWeekData.revenue || 0
+                },
+                previous: {
+                  units_sold: previousWeekData?.units_sold || 0,
+                  revenue: previousWeekData?.revenue || 0
+                }
+              };
+
+              if (previousWeekData && previousWeekData.units_sold > 0) {
+                result.unitsSoldChange = Math.round(((currentWeekData.units_sold - previousWeekData.units_sold) / previousWeekData.units_sold) * 100);
+              } else {
+                result.unitsSoldChange = 0;
+              }
+
+              if (previousWeekData && previousWeekData.revenue > 0) {
+                result.revenueChange = Math.round(((currentWeekData.revenue - previousWeekData.revenue) / previousWeekData.revenue) * 100);
+              } else {
+                result.revenueChange = 0;
+              }
+
+              genreComparison.push(result);
+            });
+
+            // Fetch album ranking data
+            db.all(albumRankingQuery, [], (albumErr, albumRows) => {
+              if (albumErr) {
+                console.error('Error fetching album ranking:', albumErr);
+                return res.status(500).json({ error: albumErr.message });
+              }
+
+              console.log('Album ranking query returned rows:', albumRows.length);
+
+              // Get best selling (top 3) and worst selling (bottom 3)
+              const albumRanking = {
+                bestSelling: albumRows.slice(0, 3),
+                worstSelling: albumRows.length > 3 ? albumRows.slice(-3).reverse() : []
+              };
+
+              res.json({ success: true, data: { currentWeek, previousWeek, comparison, genreComparison, albumRanking } });
+            });
+          });
         });
       });
     });
