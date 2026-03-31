@@ -296,11 +296,11 @@ app.get('/api/seller/products', authenticateToken, requireSeller, (req, res) => 
   );
 });
 
-// Get seller's product by product_id
+// Get seller's product by product_id (fuzzy search)
 app.get('/api/seller/products/:id', authenticateToken, requireSeller, (req, res) => {
   const productId = req.params.id;
 
-  db.get(
+  db.all(
     `SELECT
       p.*,
       a.title as album_title,
@@ -311,16 +311,15 @@ app.get('/api/seller/products/:id', authenticateToken, requireSeller, (req, res)
       a.cover_image_url as album_cover
     FROM Products p
     JOIN Albums a ON p.album_id = a.album_id
-    WHERE p.product_id = ?`,
-    [productId],
-    (err, product) => {
+    WHERE CAST(p.product_id AS TEXT) LIKE ?
+    ORDER BY p.product_id ASC
+    LIMIT 50`,
+    [`%${productId}%`],
+    (err, products) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
-      if (!product) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
-      res.json(product);
+      res.json(products || []);
     }
   );
 });
@@ -1825,11 +1824,11 @@ app.get('/api/seller/products', authenticateToken, requireSeller, (req, res) => 
   );
 });
 
-// Get seller's product by product_id
+// Get seller's product by product_id (fuzzy search)
 app.get('/api/seller/products/:id', authenticateToken, requireSeller, (req, res) => {
   const productId = req.params.id;
 
-  db.get(
+  db.all(
     `SELECT
       p.*,
       a.title as album_title,
@@ -1840,16 +1839,15 @@ app.get('/api/seller/products/:id', authenticateToken, requireSeller, (req, res)
       a.cover_image_url as album_cover
     FROM Products p
     JOIN Albums a ON p.album_id = a.album_id
-    WHERE p.product_id = ?`,
-    [productId],
-    (err, product) => {
+    WHERE CAST(p.product_id AS TEXT) LIKE ?
+    ORDER BY p.product_id ASC
+    LIMIT 50`,
+    [`%${productId}%`],
+    (err, products) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
-      if (!product) {
-        return res.status(404).json({ error: 'Product not found' });
-      }
-      res.json(product);
+      res.json(products || []);
     }
   );
 });

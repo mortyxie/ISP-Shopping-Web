@@ -95,10 +95,10 @@
             <span v-if="searchQuery" class="search-result-count">
               {{ $t('seller.searchResults', { count: filteredAlbums.length }) }}
             </span>
-            <span v-if="searchIdQuery && searchedProduct" class="search-result-count">
-              {{ $t('seller.productFound') }}
+            <span v-if="searchIdQuery && searchedProducts.length > 0" class="search-result-count">
+              {{ $t('seller.searchResults', { count: searchedProducts.length }) }}
             </span>
-            <span v-if="searchIdQuery && hasSearchedById && !isSearching && !searchedProduct" class="search-result-count error">
+            <span v-if="searchIdQuery && hasSearchedById && !isSearching && searchedProducts.length === 0" class="search-result-count error">
               {{ $t('seller.productNotFound') }}
             </span>
             <span v-if="searchIdQuery && isSearching" class="search-result-count">
@@ -106,45 +106,41 @@
             </span>
           </div>
 
-          <!-- Display searched product by ID -->
-          <div v-if="searchIdQuery && searchedProduct" class="searched-product-card">
+          <!-- Display searched products by ID -->
+          <div v-if="searchIdQuery && searchedProducts.length > 0" class="searched-products-list">
             <h4>{{ $t('seller.searchedProduct') }}</h4>
-            <div class="product-summary">
-              <div class="summary-item">
-                <strong>{{ $t('seller.id') }}:</strong> {{ searchedProduct.product_id || searchedProduct.id }}
-              </div>
-              <div class="summary-item">
-                <strong>{{ $t('seller.album') }}:</strong> {{ searchedProduct.album_title }}
-              </div>
-              <div class="summary-item">
-                <strong>{{ $t('seller.condition') }}:</strong> {{ searchedProduct.condition }}
-              </div>
-              <div class="summary-item">
-                <strong>{{ $t('seller.price') }}:</strong> ¥{{ searchedProduct.price }}
-              </div>
-              <div class="summary-item">
-                <strong>{{ $t('seller.status') }}:</strong>
-                <span :class="searchedProduct.is_active ? 'status-active' : 'status-inactive'">
-                  {{ searchedProduct.is_active ? $t('seller.active') : $t('seller.inactive') }}
-                </span>
-              </div>
-              <div class="summary-actions">
-                <button class="btn-secondary small" @click="editProduct(searchedProduct)">
-                  {{ $t('seller.edit') }}
-                </button>
-                <button
-                  class="btn-small"
-                  :class="searchedProduct.is_active ? 'btn-warning' : 'btn-success'"
-                  @click="toggleProductStatus(searchedProduct)"
-                >
-                  {{ searchedProduct.is_active !== 1 ? $t('seller.activate') : $t('seller.deactivate') }}
-                </button>
-                <button
-                  @click="clearSearch"
-                  class="btn-secondary small"
-                >
-                  {{ $t('seller.close') }}
-                </button>
+            <div v-for="product in searchedProducts" :key="product.product_id" class="searched-product-card">
+              <div class="product-summary">
+                <div class="summary-item">
+                  <strong>{{ $t('seller.id') }}:</strong> {{ product.product_id || product.id }}
+                </div>
+                <div class="summary-item">
+                  <strong>{{ $t('seller.album') }}:</strong> {{ product.album_title }}
+                </div>
+                <div class="summary-item">
+                  <strong>{{ $t('seller.condition') }}:</strong> {{ product.condition }}
+                </div>
+                <div class="summary-item">
+                  <strong>{{ $t('seller.price') }}:</strong> ¥{{ product.price }}
+                </div>
+                <div class="summary-item">
+                  <strong>{{ $t('seller.status') }}:</strong>
+                  <span :class="product.is_active ? 'status-active' : 'status-inactive'">
+                    {{ product.is_active ? $t('seller.active') : $t('seller.inactive') }}
+                  </span>
+                </div>
+                <div class="summary-actions">
+                  <button class="btn-secondary small" @click="editProduct(product)">
+                    {{ $t('seller.edit') }}
+                  </button>
+                  <button
+                    class="btn-small"
+                    :class="product.is_active ? 'btn-warning' : 'btn-success'"
+                    @click="toggleProductStatus(product)"
+                  >
+                    {{ product.is_active !== 1 ? $t('seller.activate') : $t('seller.deactivate') }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -874,7 +870,7 @@ const orders = ref([])
 const searchQuery = ref('')
 const searchIdQuery = ref('')
 const searchType = ref('name')
-const searchedProduct = ref(null)
+const searchedProducts = ref([])
 const isSearching = ref(false)
 const hasSearchedById = ref(false)
 const allProducts = ref([])
@@ -1913,13 +1909,13 @@ const handleSearchById = async () => {
   console.log('handleSearchById called with productId:', productId)
 
   if (!productId) {
-    searchedProduct.value = null
+    searchedProducts.value = []
     return
   }
 
   hasSearchedById.value = true
   isSearching.value = true
-  searchedProduct.value = null
+  searchedProducts.value = []
 
   try {
     const token = localStorage.getItem('token')
@@ -1939,19 +1935,16 @@ const handleSearchById = async () => {
     if (response.ok) {
       const data = await response.json()
       console.log('Found product data:', data)
-      searchedProduct.value = data
-    } else if (response.status === 404) {
-      console.log('Product not found (404)')
-      searchedProduct.value = null
+      searchedProducts.value = Array.isArray(data) ? data : []
     } else {
       console.error('Failed to search product by ID, status:', response.status)
       const errorText = await response.text()
       console.error('Response text:', errorText)
-      searchedProduct.value = null
+      searchedProducts.value = []
     }
   } catch (error) {
     console.error('Search product error:', error)
-    searchedProduct.value = null
+    searchedProducts.value = []
   } finally {
     isSearching.value = false
   }
@@ -1960,7 +1953,7 @@ const handleSearchById = async () => {
 const clearSearch = () => {
   searchQuery.value = ''
   searchIdQuery.value = ''
-  searchedProduct.value = null
+  searchedProducts.value = []
   hasSearchedById.value = false
 }
 
