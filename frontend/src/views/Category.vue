@@ -31,7 +31,7 @@
           v-for="category in categories"
           :key="category.id"
           class="category-card"
-          @click="goToCategory(category.name)"
+          @click="goToCategory(category)"
         >
           <div class="category-icon">
             <span class="icon-emoji">{{ category.icon }}</span>
@@ -86,6 +86,7 @@ const loadCategories = async () => {
       {
         id: 1,
         name: t('category.rock'),
+        genre: 'Rock',
         icon: '🎸',
         description: t('category.rockDesc'),
         count: genreCounts['Rock'] || 0
@@ -93,6 +94,7 @@ const loadCategories = async () => {
       {
         id: 2,
         name: t('category.pop'),
+        genre: 'Pop',
         icon: '🎤',
         description: t('category.popDesc'),
         count: genreCounts['Pop'] || 0
@@ -100,6 +102,7 @@ const loadCategories = async () => {
       {
         id: 3,
         name: t('category.jazz'),
+        genre: 'Jazz',
         icon: '🎷',
         description: t('category.jazzDesc'),
         count: genreCounts['Jazz'] || 0
@@ -107,6 +110,7 @@ const loadCategories = async () => {
       {
         id: 4,
         name: t('category.classical'),
+        genre: 'Classical',
         icon: '🎻',
         description: t('category.classicalDesc'),
         count: genreCounts['Classical'] || 0
@@ -114,6 +118,7 @@ const loadCategories = async () => {
       {
         id: 5,
         name: t('category.electronic'),
+        genre: 'Electronic',
         icon: '🎹',
         description: t('category.electronicDesc'),
         count: genreCounts['Electronic'] || 0
@@ -121,6 +126,7 @@ const loadCategories = async () => {
       {
         id: 6,
         name: t('category.hiphop'),
+        genre: 'Hip Hop',
         icon: '🎧',
         description: t('category.hiphopDesc'),
         count: genreCounts['Hip Hop'] || 0
@@ -128,6 +134,7 @@ const loadCategories = async () => {
       {
         id: 7,
         name: t('category.folk'),
+        genre: 'Folk',
         icon: '🪕',
         description: t('category.folkDesc'),
         count: genreCounts['Folk'] || 0
@@ -135,6 +142,7 @@ const loadCategories = async () => {
       {
         id: 8,
         name: t('category.metal'),
+        genre: 'Metal',
         icon: '🤘',
         description: t('category.metalDesc'),
         count: genreCounts['Metal'] || 0
@@ -142,6 +150,7 @@ const loadCategories = async () => {
       {
         id: 9,
         name: t('category.punk'),
+        genre: 'Punk',
         icon: '🎸',
         description: t('category.punkDesc'),
         count: genreCounts['Punk'] || 0
@@ -149,6 +158,7 @@ const loadCategories = async () => {
       {
         id: 10,
         name: t('category.blues'),
+        genre: 'Blues',
         icon: '🎵',
         description: t('category.bluesDesc'),
         count: genreCounts['Blues'] || 0
@@ -156,6 +166,7 @@ const loadCategories = async () => {
       {
         id: 11,
         name: t('category.country'),
+        genre: 'Country',
         icon: '🎪',
         description: t('category.countryDesc'),
         count: genreCounts['Country'] || 0
@@ -163,6 +174,7 @@ const loadCategories = async () => {
       {
         id: 12,
         name: t('category.world'),
+        genre: 'World',
         icon: '🌍',
         description: t('category.worldDesc'),
         count: genreCounts['World'] || 0
@@ -178,10 +190,10 @@ const loadCategories = async () => {
 }
 
 // 跳转到分类搜索页（搜索专辑）
-const goToCategory = (categoryName) => {
+const goToCategory = (category) => {
   router.push({
     path: '/search',
-    query: { category: categoryName }
+    query: { category: category.genre }
   })
 }
 
