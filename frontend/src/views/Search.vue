@@ -76,7 +76,7 @@
                   </div>
                 </div>
                 <div class="album-info">
-                  <div class="album-category">{{ album.genre || t('category.other') }}</div>
+                  <div class="album-category">{{ getCategoryLabel(album.genre) || t('category.other') }}</div>
                   <div class="album-title">{{ album.title }}</div>
                   <div class="album-artist">{{ album.artist }}</div>
                   <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
@@ -134,7 +134,7 @@
                   </div>
                 </div>
                 <div class="album-info">
-                  <div class="album-category">{{ album.genre || t('category.other') }}</div>
+                  <div class="album-category">{{ getCategoryLabel(album.genre) || t('category.other') }}</div>
                   <div class="album-title">{{ album.title }}</div>
                   <div class="album-artist">{{ album.artist }}</div>
                   <div class="album-year" v-if="album.release_year">{{ album.release_year }}</div>
