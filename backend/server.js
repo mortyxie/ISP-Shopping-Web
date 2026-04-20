@@ -2699,29 +2699,39 @@ app.get('/api/seller/reports/total-trend', authenticateToken, requireSeller, (re
   let weeks = parseInt(req.query.weeks);
   if (isNaN(weeks)) weeks = 12;
   weeks = Math.max(Math.min(weeks, 52), 4);
-  const days = weeks * 7;
 
-  console.log(`Total trend: weeks=${weeks}, days=${days}`);
+  console.log(`Total trend: weeks=${weeks}`);
 
-  // First, get cutoff date string
-  const dateFilter = `-${days} days`;
-  console.log('Date filter:', dateFilter);
-
+  // Generate all expected weeks using WITH RECURSIVE, then LEFT JOIN with order data
+  const daysOffset = (weeks - 1) * 7;
   const query = `
+    WITH RECURSIVE weeks(week_num, week_start, week_end) AS (
+      SELECT 1,
+             date('now', '-${daysOffset} days', 'weekday 1'),
+             date('now', '-${daysOffset} days', 'weekday 1', '+6 days')
+      UNION ALL
+      SELECT week_num + 1,
+             date(week_start, '+7 days'),
+             date(week_end, '+7 days')
+      FROM weeks
+      WHERE week_num < ${weeks}
+    )
     SELECT
-      strftime('%Y-%W', o.created_at) as week,
-      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
-      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
-      COUNT(oi.order_item_id) as units_sold,
-      SUM(oi.quantity) as total_quantity,
-      SUM(oi.quantity * oi.price_at_purchase) as revenue,
-      COUNT(DISTINCT o.order_id) as orders
-    FROM Orders o
-    JOIN Order_Items oi ON o.order_id = oi.order_id
-    WHERE o.status IN ('paid', 'shipped', 'completed')
-      AND o.created_at >= date('now', '${dateFilter}')
-    GROUP BY week
-    ORDER BY week ASC
+      w.week_num,
+      strftime('%Y-%W', w.week_start) as week,
+      w.week_start,
+      w.week_end,
+      COALESCE(COUNT(DISTINCT oi.order_item_id), 0) as units_sold,
+      COALESCE(SUM(oi.quantity), 0) as total_quantity,
+      COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as revenue,
+      COALESCE(COUNT(DISTINCT o.order_id), 0) as orders
+    FROM weeks w
+    LEFT JOIN Orders o ON o.created_at >= w.week_start
+      AND o.created_at <= w.week_end
+      AND o.status IN ('paid', 'shipped', 'completed')
+    LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+    GROUP BY w.week_num, w.week_start, w.week_end
+    ORDER BY w.week_num ASC
   `;
 
   console.log('Total trend query:', query);
@@ -2788,62 +2798,86 @@ app.get('/api/seller/reports/album-weekly', authenticateToken, requireSeller, (r
   let weeks = parseInt(req.query.weeks);
   if (isNaN(weeks)) weeks = 12;
   weeks = Math.max(Math.min(weeks, 52), 4);
-  const days = weeks * 7;
   const rawAlbumId = req.query.album_id;
   const parsed = rawAlbumId != null && rawAlbumId !== '' ? parseInt(String(rawAlbumId), 10) : NaN;
   const albumId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 
-  console.log(`Album weekly: weeks=${weeks}, days=${days}, albumId=${albumId}`);
+  console.log(`Album weekly: weeks=${weeks}, albumId=${albumId}`);
 
-  const dateFilter = `-${days} days`;
-  console.log('Date filter:', dateFilter);
-
-  const baseFrom = `
-    FROM Orders o
-    JOIN Order_Items oi ON o.order_id = oi.order_id
-    JOIN Products p ON oi.product_id = p.product_id
-    JOIN Albums a ON p.album_id = a.album_id
-    WHERE o.status IN ('paid', 'shipped', 'completed')
-      AND o.created_at >= date('now', '${dateFilter}')
-  `;
+  const daysOffset = (weeks - 1) * 7;
 
   let query;
   const params = [];
 
   if (albumId) {
+    // Specific album
     query = `
-    SELECT
-      strftime('%Y-%W', o.created_at) as week,
-      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
-      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
-      a.album_id,
-      a.title,
-      a.artist,
-      COUNT(oi.order_item_id) as units_sold,
-      SUM(oi.quantity) as total_quantity,
-      SUM(oi.quantity * oi.price_at_purchase) as revenue
-    ${baseFrom}
-      AND a.album_id = ?
-    GROUP BY week, a.album_id
-    ORDER BY week ASC, a.title
+      WITH RECURSIVE weeks(week_num, week_start, week_end) AS (
+        SELECT 1,
+               date('now', '-${daysOffset} days', 'weekday 1'),
+               date('now', '-${daysOffset} days', 'weekday 1', '+6 days')
+        UNION ALL
+        SELECT week_num + 1,
+               date(week_start, '+7 days'),
+               date(week_end, '+7 days')
+        FROM weeks
+        WHERE week_num < ${weeks}
+      )
+      SELECT
+        w.week_num,
+        strftime('%Y-%W', w.week_start) as week,
+        w.week_start,
+        w.week_end,
+        a.album_id,
+        a.title,
+        a.artist,
+        COALESCE(COUNT(DISTINCT oi.order_item_id), 0) as units_sold,
+        COALESCE(SUM(oi.quantity), 0) as total_quantity,
+        COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as revenue
+      FROM weeks w
+      LEFT JOIN Orders o ON o.created_at >= w.week_start
+        AND o.created_at <= w.week_end
+        AND o.status IN ('paid', 'shipped', 'completed')
+      LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+      LEFT JOIN Products p ON oi.product_id = p.product_id
+      LEFT JOIN Albums a ON p.album_id = a.album_id
+      WHERE a.album_id = ? OR a.album_id IS NULL
+      GROUP BY w.week_num, w.week_start, w.week_end, a.album_id
+      ORDER BY w.week_num ASC
     `;
     params.push(albumId);
   } else {
-    // 「所有专辑」：按周汇总全平台销量，避免每专辑一行导致前端图表标签与数据长度不一致
+    // All albums combined
     query = `
-    SELECT
-      strftime('%Y-%W', o.created_at) as week,
-      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
-      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
-      NULL as album_id,
-      '' as title,
-      '' as artist,
-      COUNT(oi.order_item_id) as units_sold,
-      SUM(oi.quantity) as total_quantity,
-      SUM(oi.quantity * oi.price_at_purchase) as revenue
-    ${baseFrom}
-    GROUP BY week
-    ORDER BY week ASC
+      WITH RECURSIVE weeks(week_num, week_start, week_end) AS (
+        SELECT 1,
+               date('now', '-${daysOffset} days', 'weekday 1'),
+               date('now', '-${daysOffset} days', 'weekday 1', '+6 days')
+        UNION ALL
+        SELECT week_num + 1,
+               date(week_start, '+7 days'),
+               date(week_end, '+7 days')
+        FROM weeks
+        WHERE week_num < ${weeks}
+      )
+      SELECT
+        w.week_num,
+        strftime('%Y-%W', w.week_start) as week,
+        w.week_start,
+        w.week_end,
+        NULL as album_id,
+        '' as title,
+        '' as artist,
+        COALESCE(COUNT(DISTINCT oi.order_item_id), 0) as units_sold,
+        COALESCE(SUM(oi.quantity), 0) as total_quantity,
+        COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as revenue
+      FROM weeks w
+      LEFT JOIN Orders o ON o.created_at >= w.week_start
+        AND o.created_at <= w.week_end
+        AND o.status IN ('paid', 'shipped', 'completed')
+      LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+      GROUP BY w.week_num, w.week_start, w.week_end
+      ORDER BY w.week_num ASC
     `;
   }
 
@@ -2865,48 +2899,98 @@ app.get('/api/seller/reports/product-weekly', authenticateToken, requireSeller, 
   let weeks = parseInt(req.query.weeks);
   if (isNaN(weeks)) weeks = 12;
   weeks = Math.max(Math.min(weeks, 52), 4);
-  const days = weeks * 7;
   const rawAlbumId = req.query.album_id;
   const parsed = rawAlbumId != null && rawAlbumId !== '' ? parseInt(String(rawAlbumId), 10) : NaN;
   const albumId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 
-  console.log(`Product weekly: weeks=${weeks}, days=${days}, albumId=${albumId}`);
+  console.log(`Product weekly: weeks=${weeks}, albumId=${albumId}`);
 
-  const dateFilter = `-${days} days`;
-  console.log('Date filter:', dateFilter);
+  const daysOffset = (weeks - 1) * 7;
 
-  let query = `
-    SELECT
-      strftime('%Y-%W', o.created_at) as week,
-      date(o.created_at, '-' || strftime('%w', o.created_at) || ' days') as week_start,
-      date(o.created_at, '+' || (6 - strftime('%w', o.created_at)) || ' days') as week_end,
-      p.product_id,
-      p.condition,
-      p.price,
-      a.album_id,
-      a.title as album_title,
-      a.artist,
-      COUNT(oi.order_item_id) as units_sold,
-      SUM(oi.quantity) as total_quantity,
-      SUM(oi.quantity * oi.price_at_purchase) as revenue
-    FROM Orders o
-    JOIN Order_Items oi ON o.order_id = oi.order_id
-    JOIN Products p ON oi.product_id = p.product_id
-    JOIN Albums a ON p.album_id = a.album_id
-    WHERE o.status IN ('paid', 'shipped', 'completed')
-      AND o.created_at >= date('now', '${dateFilter}')
-  `;
-
+  let query;
   const params = [];
-  if (albumId) {
-    query += ` AND a.album_id = ?`;
-    params.push(albumId);
-  }
 
-  query += `
-    GROUP BY week, p.product_id
-    ORDER BY week ASC, a.title, p.condition
-  `;
+  if (albumId) {
+    // Specific album
+    query = `
+      WITH RECURSIVE weeks(week_num, week_start, week_end) AS (
+        SELECT 1,
+               date('now', '-${daysOffset} days', 'weekday 1'),
+               date('now', '-${daysOffset} days', 'weekday 1', '+6 days')
+        UNION ALL
+        SELECT week_num + 1,
+               date(week_start, '+7 days'),
+               date(week_end, '+7 days')
+        FROM weeks
+        WHERE week_num < ${weeks}
+      )
+      SELECT
+        w.week_num,
+        'Week ' || w.week_num as week_label,
+        strftime('%Y-%W', w.week_start) as week,
+        w.week_start,
+        w.week_end,
+        p.product_id,
+        p.condition,
+        p.price,
+        a.album_id,
+        a.title as album_title,
+        a.artist,
+        COALESCE(COUNT(DISTINCT oi.order_item_id), 0) as units_sold,
+        COALESCE(SUM(oi.quantity), 0) as total_quantity,
+        COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as revenue
+      FROM weeks w
+      LEFT JOIN Orders o ON o.created_at >= w.week_start
+        AND o.created_at <= w.week_end
+        AND o.status IN ('paid', 'shipped', 'completed')
+      LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+      LEFT JOIN Products p ON oi.product_id = p.product_id
+      LEFT JOIN Albums a ON p.album_id = a.album_id
+      WHERE (a.album_id = ? OR a.album_id IS NULL)
+      GROUP BY w.week_num, w.week_start, w.week_end, p.product_id
+      ORDER BY w.week_num ASC, a.title, p.condition
+    `;
+    params.push(albumId);
+  } else {
+    // All products
+    query = `
+      WITH RECURSIVE weeks(week_num, week_start, week_end) AS (
+        SELECT 1,
+               date('now', '-${daysOffset} days', 'weekday 1'),
+               date('now', '-${daysOffset} days', 'weekday 1', '+6 days')
+        UNION ALL
+        SELECT week_num + 1,
+               date(week_start, '+7 days'),
+               date(week_end, '+7 days')
+        FROM weeks
+        WHERE week_num < ${weeks}
+      )
+      SELECT
+        w.week_num,
+        'Week ' || w.week_num as week_label,
+        strftime('%Y-%W', w.week_start) as week,
+        w.week_start,
+        w.week_end,
+        p.product_id,
+        p.condition,
+        p.price,
+        a.album_id,
+        a.title as album_title,
+        a.artist,
+        COALESCE(COUNT(DISTINCT oi.order_item_id), 0) as units_sold,
+        COALESCE(SUM(oi.quantity), 0) as total_quantity,
+        COALESCE(SUM(oi.quantity * oi.price_at_purchase), 0) as revenue
+      FROM weeks w
+      LEFT JOIN Orders o ON o.created_at >= w.week_start
+        AND o.created_at <= w.week_end
+        AND o.status IN ('paid', 'shipped', 'completed')
+      LEFT JOIN Order_Items oi ON o.order_id = oi.order_id
+      LEFT JOIN Products p ON oi.product_id = p.product_id
+      LEFT JOIN Albums a ON p.album_id = a.album_id
+      GROUP BY w.week_num, w.week_start, w.week_end, p.product_id
+      ORDER BY w.week_num ASC, a.title, p.condition
+    `;
+  }
 
   console.log('Product weekly query:', query);
 

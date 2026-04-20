@@ -746,6 +746,7 @@
       "units": "Units Sold",
       "revenue": "Revenue",
       "noData": "No data available for the selected period.",
+      "noProductsThisWeek": "No product sales data for this week",
       "weeklyComparison": "Weekly Comparison",
       "currentWeekTotalSales": "Current Week Total Sales",
       "currentWeekTotalRevenue": "Current Week Total Revenue",

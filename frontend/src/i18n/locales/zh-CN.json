@@ -749,6 +749,7 @@
       "units": "销量",
       "revenue": "收入",
       "noData": "所选时间段没有数据。",
+      "noProductsThisWeek": "本周暂无产品销售数据",
       "weeklyComparison": "周对比",
       "currentWeekTotalSales": "本周总销量",
       "currentWeekTotalRevenue": "本周总收入",

@@ -473,10 +473,47 @@
               <option value="4">4 {{ $t('seller.reports.weeks') }}</option>
               <option value="8">8 {{ $t('seller.reports.weeks') }}</option>
               <option value="12">12 {{ $t('seller.reports.weeks') }}</option>
-              <option value="24">24 {{ $t('seller.reports.weeks') }}</option>
-              <option value="52">52 {{ $t('seller.reports.weeks') }}</option>
             </select>
           </div>
+        </div>
+
+        <!-- Feature 1: Total Sales Trend -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.totalTrend') }}</h3>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else class="chart-container">
+            <canvas ref="totalTrendChart" id="totalTrendChart"></canvas>
+          </div>
+          <div v-if="!reports.loading && reports.totalTrendData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
+        </div>
+
+        <!-- Feature 3: Album Selector & Trend -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.albumTrend') }}</h3>
+          <div class="filter-group" style="margin-bottom: 20px;">
+            <label>{{ $t('seller.reports.selectAlbum') }}</label>
+            <select v-model="reports.selectedAlbumId" @change="loadAlbumReports" class="filter-select">
+              <option :value="null">{{ $t('seller.reports.allAlbums') }}</option>
+              <option v-for="album in reports.albumsList" :key="album.album_id" :value="album.album_id">
+                {{ album.title }} - {{ album.artist }}
+              </option>
+            </select>
+          </div>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else class="chart-container">
+            <canvas ref="albumChart" id="albumChart"></canvas>
+          </div>
+          <div v-if="!reports.loading && reports.albumData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
+        </div>
+
+        <!-- Feature 2: Genre Weekly Comparison -->
+        <div class="report-section">
+          <h3>{{ $t('seller.reports.genreWeekly') }}</h3>
+          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
+          <div v-else class="chart-container">
+            <canvas ref="genreChart" id="genreChart"></canvas>
+          </div>
+          <div v-if="!reports.loading && reports.genreData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
         </div>
 
         <!-- Weekly Comparison Card -->
@@ -683,94 +720,16 @@
           <div v-else-if="!reports.loading" class="no-data">{{ $t('seller.reports.noWeeklyComparisonData') }}</div>
         </div>
 
-        <!-- Feature 1: Total Sales Trend -->
-        <div class="report-section">
-          <h3>{{ $t('seller.reports.totalTrend') }}</h3>
-          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
-          <div v-else class="chart-container">
-            <canvas ref="totalTrendChart" id="totalTrendChart"></canvas>
-          </div>
-          <div v-if="!reports.loading && reports.totalTrendData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
-        </div>
-
-        <!-- Feature 2: Genre Weekly Comparison -->
-        <div class="report-section">
-          <h3>{{ $t('seller.reports.genreWeekly') }}</h3>
-          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
-          <div v-else class="chart-container">
-            <canvas ref="genreChart" id="genreChart"></canvas>
-          </div>
-          <div v-if="!reports.loading && reports.genreData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
-        </div>
-
-        <!-- Feature 3: Album Selector & Trend -->
-        <div class="report-section">
-          <h3>{{ $t('seller.reports.albumTrend') }}</h3>
-          <div class="filter-group" style="margin-bottom: 20px;">
-            <label>{{ $t('seller.reports.selectAlbum') }}</label>
-            <select v-model="reports.selectedAlbumId" @change="loadAlbumReports" class="filter-select">
-              <option :value="null">{{ $t('seller.reports.allAlbums') }}</option>
-              <option v-for="album in reports.albumsList" :key="album.album_id" :value="album.album_id">
-                {{ album.title }} - {{ album.artist }}
-              </option>
-            </select>
-          </div>
-          <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
-          <div v-else class="chart-container">
-            <canvas ref="albumChart" id="albumChart"></canvas>
-          </div>
-          <div v-if="!reports.loading && reports.albumData.length === 0" class="no-data">{{ $t('seller.reports.noData') }}</div>
-        </div>
-
         <!-- Feature 4: Product Sales Table -->
         <div class="report-section">
           <h3>{{ $t('seller.reports.productSales') }}</h3>
           <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
-          <div v-else-if="reports.productData.length > 0" class="product-sales-table-wrap">
-            <div class="product-sales-pagination">
-              <span class="pagination-meta">
-                {{ $t('seller.reports.productSalesRowsTotal', { count: reports.productData.length }) }}
-              </span>
-              <label class="pagination-page-size">
-                <span>{{ $t('seller.reports.productSalesPerPage') }}</span>
-                <select
-                  v-model.number="reports.productSalesPageSize"
-                  class="filter-select"
-                  @change="resetProductSalesPagination"
-                >
-                  <option :value="10">10</option>
-                  <option :value="20">20</option>
-                  <option :value="50">50</option>
-                </select>
-              </label>
-              <span class="pagination-meta">
-                {{
-                  $t('seller.reports.productSalesPageInfo', {
-                    current: reports.productSalesPage,
-                    total: productSalesTotalPages
-                  })
-                }}
-              </span>
-              <div class="pagination-actions">
-                <button
-                  type="button"
-                  class="btn-secondary small"
-                  :disabled="reports.productSalesPage <= 1"
-                  @click="goProductSalesPage(-1)"
-                >
-                  {{ $t('seller.reports.productSalesPrev') }}
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary small"
-                  :disabled="reports.productSalesPage >= productSalesTotalPages"
-                  @click="goProductSalesPage(1)"
-                >
-                  {{ $t('seller.reports.productSalesNext') }}
-                </button>
-              </div>
-            </div>
-            <div class="table-container">
+          <div v-else-if="reports.productData.length > 0" class="product-sales-weekly-wrap">
+            <div v-for="week in getGroupedProductSalesByWeek()" :key="week.week_num" class="product-week-section">
+              <h4 class="week-header">
+                {{ week.week_label }}
+                <small>{{ week.week_start }} 至 {{ week.week_end }}</small>
+              </h4>
               <table class="sales-table">
                 <thead>
                   <tr>
@@ -783,8 +742,8 @@
                 </thead>
                 <tbody>
                   <tr
-                    v-for="(product, idx) in paginatedProductSales"
-                    :key="`${product.week ?? ''}-${product.product_id ?? idx}-${reports.productSalesPage}`"
+                    v-for="(product, ) in week.products"
+                    :key="product.product_id"
                   >
                     <td>{{ product.album_title }}</td>
                     <td>{{ formatProductCondition(product.condition) }}</td>
@@ -794,6 +753,9 @@
                   </tr>
                 </tbody>
               </table>
+              <div v-if="week.products.length === 0" class="no-data">
+                {{ $t('seller.reports.noProductsThisWeek') }}
+              </div>
             </div>
           </div>
           <div v-else class="no-data">{{ $t('seller.reports.noData') }}</div>
@@ -1124,6 +1086,30 @@ const getChangeClass = (change) => {
   if (change > 0) return 'positive'
   if (change < 0) return 'negative'
   return 'neutral'
+}
+
+// Helper: Group product sales by week
+const getGroupedProductSalesByWeek = () => {
+  const data = reports.value.productData || []
+  const weeks = {}
+
+  // Group by week_num
+  data.forEach(product => {
+    const weekNum = product.week_num || 1
+    if (!weeks[weekNum]) {
+      weeks[weekNum] = {
+        week_num: weekNum,
+        week_label: product.week_label || `Week ${weekNum}`,
+        week_start: product.week_start,
+        week_end: product.week_end,
+        products: []
+      }
+    }
+    weeks[weekNum].products.push(product)
+  })
+
+  // Convert to array and sort by week_num
+  return Object.values(weeks).sort((a, b) => a.week_num - b.week_num)
 }
 
 // Toggle album products visibility
@@ -3066,6 +3052,30 @@ const formatDateTime = (dateString) => {
 
 .product-sales-table-wrap {
   margin-top: var(--spacing-md);
+}
+
+.product-sales-weekly-wrap {
+  margin-top: var(--spacing-md);
+}
+
+.product-week-section {
+  margin-bottom: 30px;
+}
+
+.week-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.week-header small {
+  font-weight: 400;
+  font-size: 13px;
+  opacity: 0.9;
 }
 
 .product-sales-pagination {
