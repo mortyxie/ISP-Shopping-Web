@@ -73,9 +73,9 @@
       <section class="albums-section">
         <div class="container">
           <div class="care-only care-banner">
-            <div class="title">👋 关怀模式</div>
+            <div class="title">👋 {{ $t('careMode.title') }}</div>
             <div class="desc">
-              点击唱片卡片即可查看详情并购买。字更大、信息更少，操作更清晰。
+              {{ $t('careMode.homeDescription') }}
             </div>
           </div>
           <h2 class="section-title">{{ $t('home.featuredAlbums') }}</h2>

@@ -104,10 +104,15 @@ body.care-mode .albums-grid {
     grid-template-columns: repeat(2, 1fr) !important;
 }
 
-/* 商品/地址：保持单列更清晰 */
+/* 商品/地址：默认关怀模式单列（专辑详情副本见下条覆盖） */
 body.care-mode .products-grid,
 body.care-mode .addresses-grid {
     grid-template-columns: 1fr !important;
+}
+
+/* 专辑详情页在售副本：与首页唱片网格一致，两列 */
+body.care-mode .album-detail-page .products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
 }
 
 /* 关怀模式：按钮更大、更易点 */

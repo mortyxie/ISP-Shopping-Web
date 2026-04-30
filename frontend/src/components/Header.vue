@@ -81,7 +81,6 @@
           <div class="user-dropdown" v-if="showUserMenu">
             <div class="dropdown-item" @click="$router.push('/profile')">{{ $t('header.profile') }}</div>
             <div class="dropdown-item" v-if="!isSeller" @click="$router.push('/addresses')">{{ $t('header.addresses') }}</div>
-            <div class="dropdown-item" v-if="!isSeller" @click="$router.push('/wishlist')">{{ $t('header.wishlist') }}</div>
             <div class="dropdown-item" v-if="isSeller" @click="$router.push('/seller')">{{ $t('header.nav.sellerDashboard') }}</div>
             <div class="dropdown-divider"></div>
             <div class="dropdown-item" @click="handleLogout">{{ $t('header.logout') }}</div>

@@ -30,10 +30,8 @@
       <!-- 购物车有商品 -->
       <div v-else class="cart-content">
         <div class="care-only care-banner">
-          <div class="title">🛒 购物车使用方法</div>
-          <div class="desc">
-            每件商品都是孤品：数量只能选 <strong>0 或 1</strong>。只有数量为 <strong>1</strong> 的商品会进入结账。
-          </div>
+          <div class="title">🛒 {{ $t('careMode.cartTitle') }}</div>
+          <div class="desc" v-html="$t('careMode.cartDescription')"></div>
         </div>
         <div class="cart-items">
           <div class="cart-header">
@@ -78,7 +76,7 @@
                 />
                 <div class="product-details">
                   <h3 class="product-name">{{ item.name }}</h3>
-                  <p class="product-condition">{{ item.condition }}</p>
+                  <p class="product-condition">{{ formatCondition(item.condition) }}</p>
                   <p v-if="isSoldOut(item)" class="sold-out">已售罄</p>
                 </div>
               </div>
@@ -162,12 +160,15 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getRecordPlaceholder } from '../utils/recordPlaceholder'
+import { formatConditionLabel } from '../utils/conditionLabel'
 import { getCart, removeFromCart, updateCartQuantity } from '../services/cartService'
 import { isAuthenticated } from '../services/authService'
 import { setCheckoutDraft } from '../services/orderService'
 
 const router = useRouter()
 const { t } = useI18n()
+
+const formatCondition = (c) => formatConditionLabel(t, c)
 
 const cartItems = ref([])
 const isLoading = ref(false)

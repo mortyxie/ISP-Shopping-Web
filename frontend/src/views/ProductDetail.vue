@@ -18,9 +18,9 @@
       <!-- Product Content -->
       <div v-else class="product-main">
         <div class="care-only care-banner">
-          <div class="title">🧾 购买提示</div>
+          <div class="title">🧾 {{ $t('careMode.productDetailTitle') }}</div>
           <div class="desc">
-            可以先加入购物车（🛒），也可以直接购买（💰）。每件都是孤品。
+            {{ $t('careMode.productDetailDescription') }}
           </div>
         </div>
         <!-- 左侧：商品大图 with navigation buttons -->
@@ -52,7 +52,7 @@
           <div class="product-details-simple">
             <div class="detail-row">
               <span class="detail-label">{{ $t('productDetail.condition') }}:</span>
-              <span class="detail-value">{{ productCondition }}</span>
+              <span class="detail-value">{{ productConditionDisplay }}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">{{ $t('productDetail.price') }}:</span>
@@ -94,6 +94,7 @@ import { addToCart as addItemToCart } from '../services/cartService'
 import { getProduct } from '../services/productService'
 import { isAuthenticated } from '../services/authService'
 import { setCheckoutDraft } from '../services/orderService'
+import { formatConditionLabel } from '../utils/conditionLabel'
 
 const isSeller = ref(false)
 
@@ -110,6 +111,7 @@ const productId = computed(() => parseInt(route.params.id))
 const productName = ref('')
 const productArtist = ref('')
 const productCondition = ref('')
+const productConditionDisplay = computed(() => formatConditionLabel(t, productCondition.value))
 const productPrice = ref(0)
 const productDescription = ref('')
 
@@ -196,7 +198,9 @@ const loadProduct = async () => {
     productArtist.value = product.artist
     productCondition.value = product.condition
     productPrice.value = product.price
-    productDescription.value = product.description || `${product.condition} condition copy`
+    productDescription.value =
+      product.description ||
+      `${formatConditionLabel(t, product.condition)} · ${t('productDetail.noDescription')}`
     
     // Handle product images
     if (product.image_urls) {

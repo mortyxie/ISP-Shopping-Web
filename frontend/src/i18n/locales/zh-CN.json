@@ -24,6 +24,11 @@
     }
   },
   "locale": "zh-CN",
+  "conditionGrade": {
+    "mint": "99新",
+    "nearmint": "85新",
+    "good": "75新"
+  },
   "home": {
     "latestUpdates": "最新动态",
     "viewMore": "查看更多",
@@ -336,7 +341,8 @@
     "description": "商品描述",
     "addedToCart": "已加入购物车",
     "addToCartError": "加入购物车失败",
-    "buyNow": "立即购买"
+    "buyNow": "立即购买",
+    "noDescription": "暂无描述"
   },
    "albumDetail": {
     "tracklist": "曲目列表",
@@ -368,9 +374,9 @@
       "productId": "product_id"
     },
     "conditions": {
-      "mint": "完美品",
-      "nearmint": "近完美品",
-      "good": "良好",
+      "mint": "99新",
+      "nearmint": "85新",
+      "good": "75新",
       "copies": "件"
     }
   },
@@ -673,9 +679,9 @@
     "minImagesRequired": "请至少上传3张图片",
     "updateProduct": "更新商品",
     "addProduct": "添加商品",
-    "mint": "完美品",
-    "nearMint": "近完美品",
-    "good": "良好",
+    "mint": "99新",
+    "nearMint": "85新",
+    "good": "75新",
     "rock": "摇滚",
     "pop": "流行",
     "jazz": "爵士",
@@ -730,6 +736,11 @@
       "genreWeekly": "类别周销量对比",
       "albumTrend": "专辑周销量趋势",
       "productSales": "产品周销量详情",
+      "productSalesRowsTotal": "共 {count} 条",
+      "productSalesPerPage": "每页条数",
+      "productSalesPageInfo": "第 {current} / {total} 页",
+      "productSalesPrev": "上一页",
+      "productSalesNext": "下一页",
       "selectAlbum": "选择专辑",
       "allAlbums": "所有专辑",
       "album": "专辑",
@@ -757,9 +768,9 @@
       "album": "专辑",
       "artist": "艺术家",
       "conditionAnalysis": "产品条件分析",
-      "Mint": "全新",
-      "NearMint": "近新",
-      "Good": "良好",
+      "Mint": "99新",
+      "NearMint": "85新",
+      "Good": "75新",
       "sales": "销量"
     }
   },
@@ -775,5 +786,73 @@
     "korea": "韩国",
     "singapore": "新加坡",
     "other": "其他"
+  },
+  "about": {
+    "title": "关于我们",
+    "intro": "欢迎来到凤凰花开的路口 — 一个热爱黑胶唱片的二手交易平台。",
+    "whatWeDo": {
+      "title": "我们在做什么",
+      "text": "我们相信每一张黑胶唱片都有它独特的故事。我们的平台连接着唱片爱好者和收藏家，让好音乐找到新家。无论是经典摇滚、爵士、古典还是流行，你都能在这里找到心仪的唱片。"
+    },
+    "whyVinyl": {
+      "title": "为什么选择黑胶",
+      "text": "黑胶唱片不仅仅是音乐载体，更是一种文化。它温暖的音质、精美的封面设计和收藏价值，是数字音乐无法替代的。我们希望通过这个平台，让更多人感受到黑胶的魅力。"
+    },
+    "ourPromise": {
+      "title": "我们的承诺",
+      "items": [
+        "✓ 每张唱片都经过严格品相鉴定",
+        "✓ 如实描述，明码标价",
+        "✓ 安全支付，交易保障",
+        "✓ 专业包装，放心运输"
+      ]
+    },
+    "contact": {
+      "title": "联系我们",
+      "text": "有任何问题或建议？我们很乐意听到你的声音！"
+    }
+  },
+  "help": {
+    "title": "帮助中心",
+    "faq": {
+      "title": "常见问题",
+      "q1": "如何购买唱片？",
+      "a1": "浏览专辑页面，选择你想要的成色版本，点击进入商品详情后加入购物车或直接购买，然后完成结算即可。",
+      "q2": "唱片的成色如何定义？",
+      "a2": "我们的唱片分为三个等级：99新（Mint）、85新（Near Mint）、75新（Good），对应轻微至明显的使用痕迹，均以可正常播放为前提。",
+      "q3": "如何联系卖家？",
+      "a3": "你可以通过订单详情页的联系方式与卖家沟通，或者在商品页面留言询问。",
+      "q4": "支持什么支付方式？",
+      "a4": "我们目前支持微信支付、支付宝和银行卡支付。支付功能正在不断完善中。",
+      "q5": "可以退换货吗？",
+      "a5": "如果唱片与描述严重不符，请在签收后7天内联系客服申请退换。具体政策请查看我们的退换货说明。"
+    },
+    "contact": {
+      "title": "联系客服",
+      "text": "如果以上未能解决你的问题，请联系我们的客服团队：",
+      "email": "邮箱",
+      "response": "回复时间",
+      "hours": "小时"
+    }
+  },
+  "careMode": {
+    "title": "关怀模式",
+    "homeDescription": "点击唱片卡片即可查看详情并购买。字更大、信息更少，操作更清晰。",
+    "searchTitle": "搜索提示",
+    "searchDescription": "直接输入专辑名/歌手名搜索；也可以先点分类，再看结果。",
+    "categoryTitle": "先选一个分类",
+    "categoryDescription": "点进分类后，会自动带你去对应的唱片列表。",
+    "albumDetailTitle": "请选择成色并进入购买",
+    "albumDetailDescription": "点任意一条商品卡片，就会进入商品详情页（可以加入购物车或直接购买）。",
+    "productDetailTitle": "购买提示",
+    "productDetailDescription": "可以先加入购物车（🛒），也可以直接购买（💰）。每件都是孤品。",
+    "cartTitle": "购物车使用方法",
+    "cartDescription": "每件商品都是孤品：数量只能选 <strong>0 或 1</strong>。只有数量为 <strong>1</strong> 的商品会进入结账。",
+    "addressesTitle": "收货地址",
+    "addressesDescription": "建议设置一个'默认地址'，下单会更方便。",
+    "ordersTitle": "我的订单",
+    "ordersDescription": "点击'查看详情'可查看地址、付款状态与商品清单。",
+    "checkoutTitle": "结算提示",
+"checkoutDescription": "请先确认收货地址与支付方式，然后点击底部\"提交订单\"。金额会自动计算。"
   }
 }

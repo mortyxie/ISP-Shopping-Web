@@ -118,7 +118,7 @@
                   <strong>{{ $t('seller.album') }}:</strong> {{ product.album_title }}
                 </div>
                 <div class="summary-item">
-                  <strong>{{ $t('seller.condition') }}:</strong> {{ product.condition }}
+                  <strong>{{ $t('seller.condition') }}:</strong> {{ formatProductCondition(product.condition) }}
                 </div>
                 <div class="summary-item">
                   <strong>{{ $t('seller.price') }}:</strong> ¥{{ product.price }}
@@ -211,7 +211,7 @@
                   
                   <div class="product-details">
                     <div class="product-id">ID: {{ product.id || product.product_id }}</div>
-                    <h5>{{ product.condition }}</h5>
+                    <h5>{{ formatProductCondition(product.condition) }}</h5>
                     <p class="product-price">¥{{ product.price }}</p>
                   </div>
 
@@ -242,7 +242,7 @@
             >
               <div class="product-details">
                 <div class="product-id">ID: {{ product.product_id || product.id }}</div>
-                <h5>{{ product.album_title }} · {{ product.condition }}</h5>
+                <h5>{{ product.album_title }} · {{ formatProductCondition(product.condition) }}</h5>
                 <p class="product-price">¥{{ product.price }}</p>
               </div>
               <div class="product-actions">
@@ -663,7 +663,7 @@
               <div class="condition-cards">
                 <div v-for="condition in conditionConditions" :key="condition" class="condition-card" :class="getBestConditionClass(condition)">
                   <div class="condition-header">
-                    <span class="condition-label">{{ $t('seller.reports.' + condition.replace(' ', '')) }}</span>
+                    <span class="condition-label">{{ formatProductCondition(condition) }}</span>
                     <span class="condition-badge">{{ getBestConditionBadge(condition) }}</span>
                   </div>
                   <div class="condition-stats">
@@ -726,27 +726,75 @@
         <div class="report-section">
           <h3>{{ $t('seller.reports.productSales') }}</h3>
           <div v-if="reports.loading" class="loading">{{ $t('seller.loading') }}</div>
-          <div v-else-if="reports.productData.length > 0" class="table-container">
-            <table class="sales-table">
-              <thead>
-                <tr>
-                  <th>{{ $t('seller.reports.album') }}</th>
-                  <th>{{ $t('seller.reports.condition') }}</th>
-                  <th>{{ $t('seller.reports.price') }}</th>
-                  <th>{{ $t('seller.reports.units') }}</th>
-                  <th>{{ $t('seller.reports.revenue') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="product in reports.productData" :key="`${product.week}-${product.product_id}`">
-                  <td>{{ product.album_title }}</td>
-                  <td>{{ product.condition }}</td>
-                  <td>¥{{ product.price.toFixed(2) }}</td>
-                  <td>{{ product.units_sold }}</td>
-                  <td>¥{{ (product.revenue || 0).toFixed(2) }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-else-if="reports.productData.length > 0" class="product-sales-table-wrap">
+            <div class="product-sales-pagination">
+              <span class="pagination-meta">
+                {{ $t('seller.reports.productSalesRowsTotal', { count: reports.productData.length }) }}
+              </span>
+              <label class="pagination-page-size">
+                <span>{{ $t('seller.reports.productSalesPerPage') }}</span>
+                <select
+                  v-model.number="reports.productSalesPageSize"
+                  class="filter-select"
+                  @change="resetProductSalesPagination"
+                >
+                  <option :value="10">10</option>
+                  <option :value="20">20</option>
+                  <option :value="50">50</option>
+                </select>
+              </label>
+              <span class="pagination-meta">
+                {{
+                  $t('seller.reports.productSalesPageInfo', {
+                    current: reports.productSalesPage,
+                    total: productSalesTotalPages
+                  })
+                }}
+              </span>
+              <div class="pagination-actions">
+                <button
+                  type="button"
+                  class="btn-secondary small"
+                  :disabled="reports.productSalesPage <= 1"
+                  @click="goProductSalesPage(-1)"
+                >
+                  {{ $t('seller.reports.productSalesPrev') }}
+                </button>
+                <button
+                  type="button"
+                  class="btn-secondary small"
+                  :disabled="reports.productSalesPage >= productSalesTotalPages"
+                  @click="goProductSalesPage(1)"
+                >
+                  {{ $t('seller.reports.productSalesNext') }}
+                </button>
+              </div>
+            </div>
+            <div class="table-container">
+              <table class="sales-table">
+                <thead>
+                  <tr>
+                    <th>{{ $t('seller.reports.album') }}</th>
+                    <th>{{ $t('seller.reports.condition') }}</th>
+                    <th>{{ $t('seller.reports.price') }}</th>
+                    <th>{{ $t('seller.reports.units') }}</th>
+                    <th>{{ $t('seller.reports.revenue') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(product, idx) in paginatedProductSales"
+                    :key="`${product.week ?? ''}-${product.product_id ?? idx}-${reports.productSalesPage}`"
+                  >
+                    <td>{{ product.album_title }}</td>
+                    <td>{{ formatProductCondition(product.condition) }}</td>
+                    <td>¥{{ (Number(product.price) || 0).toFixed(2) }}</td>
+                    <td>{{ product.units_sold }}</td>
+                    <td>¥{{ (Number(product.revenue) || 0).toFixed(2) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
           <div v-else class="no-data">{{ $t('seller.reports.noData') }}</div>
         </div>
@@ -856,9 +904,43 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Chart from 'chart.js/auto'
 import { getRecordPlaceholder } from '../utils/recordPlaceholder'
+import { formatConditionLabel } from '../utils/conditionLabel'
 
 const router = useRouter()
 const { t } = useI18n()
+
+const formatProductCondition = (c) => formatConditionLabel(t, c)
+
+const productSalesPageSizeNum = computed(() => {
+  const n = Number(reports.value.productSalesPageSize)
+  return [10, 20, 50].includes(n) ? n : 20
+})
+
+const productSalesTotalPages = computed(() => {
+  const len = reports.value.productData?.length || 0
+  const size = productSalesPageSizeNum.value
+  return Math.max(1, Math.ceil(len / size))
+})
+
+const paginatedProductSales = computed(() => {
+  const list = reports.value.productData || []
+  const size = productSalesPageSizeNum.value
+  let page = Number(reports.value.productSalesPage) || 1
+  const maxPage = productSalesTotalPages.value
+  if (page > maxPage) page = maxPage
+  if (page < 1) page = 1
+  const start = (page - 1) * size
+  return list.slice(start, start + size)
+})
+
+const goProductSalesPage = (delta) => {
+  const next = (Number(reports.value.productSalesPage) || 1) + delta
+  reports.value.productSalesPage = Math.min(Math.max(1, next), productSalesTotalPages.value)
+}
+
+const resetProductSalesPagination = () => {
+  reports.value.productSalesPage = 1
+}
 
 // State
 const activeTab = ref('albums')
@@ -973,6 +1055,8 @@ const reports = ref({
   genreData: [],
   albumData: [],
   productData: [],
+  productSalesPage: 1,
+  productSalesPageSize: 20,
   selectedAlbumId: null,
   albumsList: [],
   weeklyComparison: {
@@ -1155,10 +1239,8 @@ const loadReports = async () => {
       console.error('Albums API failed:', albumsRes.status)
     }
 
-    // Load album and product data if album is selected
-    if (reports.value.selectedAlbumId) {
-      await loadAlbumReports()
-    }
+    // 专辑周趋势：含「所有专辑」汇总，需始终拉取/渲染
+    await loadAlbumReports()
 
   } catch (error) {
     console.error('Failed to load reports:', error)
@@ -1174,20 +1256,16 @@ const loadReports = async () => {
     // Additional delay to ensure DOM is rendered
     await new Promise(resolve => setTimeout(resolve, 200))
     console.log('After delay, canvases:', document.querySelectorAll('canvas'))
-    // Render charts after data is loaded
+    // Render charts after data is loaded（此时 canvas 已从 v-if 中挂载）
     await renderCharts()
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await renderAlbumChart()
   }
 }
 
-// Load album specific reports (Feature 3 & 4)
+// Load album specific reports (Feature 3 & 4)；selectedAlbumId 为空表示「所有专辑」周汇总
 const loadAlbumReports = async () => {
-  if (!reports.value.selectedAlbumId) {
-    reports.value.albumData = []
-    reports.value.productData = []
-    return
-  }
-
-  // Don't set loading for other charts - use a flag specifically for album loading
   try {
     const token = localStorage.getItem('token')
     const headers = {
@@ -1195,25 +1273,52 @@ const loadAlbumReports = async () => {
       'Content-Type': 'application/json'
     }
 
-    // Load album weekly data (Feature 3)
-    const albumRes = await fetch(`/api/seller/reports/album-weekly?weeks=${reports.value.weeks}&album_id=${reports.value.selectedAlbumId}`, { headers })
-    if (albumRes.ok) {
-      const data = await albumRes.json()
-      reports.value.albumData = data.data
+    const weeks = reports.value.weeks
+    const albumId = reports.value.selectedAlbumId
+
+    if (!albumId) {
+      const [albumRes, productRes] = await Promise.all([
+        fetch(`/api/seller/reports/album-weekly?weeks=${weeks}`, { headers }),
+        fetch(`/api/seller/reports/product-weekly?weeks=${weeks}`, { headers })
+      ])
+      if (albumRes.ok) {
+        const data = await albumRes.json()
+        reports.value.albumData = data.data || []
+      } else {
+        reports.value.albumData = []
+      }
+      if (productRes.ok) {
+        const data = await productRes.json()
+        reports.value.productData = data.data || []
+        resetProductSalesPagination()
+      } else {
+        reports.value.productData = []
+        resetProductSalesPagination()
+        console.error('Product weekly API failed:', productRes.status, await productRes.text().catch(() => ''))
+      }
+    } else {
+      const albumRes = await fetch(`/api/seller/reports/album-weekly?weeks=${weeks}&album_id=${albumId}`, { headers })
+      if (albumRes.ok) {
+        const data = await albumRes.json()
+        reports.value.albumData = data.data || []
+      }
+
+      const productRes = await fetch(`/api/seller/reports/product-weekly?weeks=${weeks}&album_id=${albumId}`, { headers })
+      if (productRes.ok) {
+        const data = await productRes.json()
+        reports.value.productData = data.data || []
+        resetProductSalesPagination()
+      } else {
+        reports.value.productData = []
+        resetProductSalesPagination()
+      }
     }
 
-    // Load product weekly data (Feature 4)
-    const productRes = await fetch(`/api/seller/reports/product-weekly?weeks=${reports.value.weeks}&album_id=${reports.value.selectedAlbumId}`, { headers })
-    if (productRes.ok) {
-      const data = await productRes.json()
-      reports.value.productData = data.data
-    }
-
-    // Wait for DOM to update and render album chart
     await nextTick()
     await new Promise(resolve => setTimeout(resolve, 100))
-    await renderAlbumChart()
-
+    if (!reports.value.loading) {
+      await renderAlbumChart()
+    }
   } catch (error) {
     console.error('Failed to load album reports:', error)
   }
@@ -1452,20 +1557,35 @@ const renderAlbumChart = async () => {
     return
   }
 
+  const byWeekStart = new Map()
+  for (const d of data) {
+    const w = d.week_start
+    if (w == null || w === '') continue
+    if (!byWeekStart.has(w)) {
+      byWeekStart.set(w, { units_sold: 0, revenue: 0 })
+    }
+    const agg = byWeekStart.get(w)
+    agg.units_sold += Number(d.units_sold) || 0
+    agg.revenue += Number(d.revenue) || 0
+  }
+  const labels = [...byWeekStart.keys()].sort()
+  const unitsSeries = labels.map((w) => byWeekStart.get(w).units_sold)
+  const revenueSeries = labels.map((w) => byWeekStart.get(w).revenue)
+
   albumChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: [...new Set(data.map(d => d.week_start))].sort(),
+      labels,
       datasets: [{
         label: t('seller.reports.units'),
-        data: data.map(d => d.units_sold),
+        data: unitsSeries,
         borderColor: '#9b59b6',
         backgroundColor: 'rgba(155, 89, 182, 0.1)',
         fill: true,
         tension: 0.4
       }, {
         label: t('seller.reports.revenue'),
-        data: data.map(d => d.revenue),
+        data: revenueSeries,
         borderColor: '#e74c3c',
         backgroundColor: 'rgba(231, 76, 60, 0.1)',
         fill: true,
@@ -2944,9 +3064,46 @@ const formatDateTime = (dateString) => {
   position: relative;
 }
 
+.product-sales-table-wrap {
+  margin-top: var(--spacing-md);
+}
+
+.product-sales-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-light, #f5f6f8);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.product-sales-pagination .pagination-meta {
+  color: var(--color-text-secondary);
+}
+
+.product-sales-pagination .pagination-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.product-sales-pagination .pagination-actions {
+  display: inline-flex;
+  gap: var(--spacing-sm);
+  margin-left: auto;
+}
+
+.product-sales-pagination .btn-secondary.small {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
 .table-container {
   overflow-x: auto;
-  margin-top: var(--spacing-md);
+  margin-top: 0;
 }
 
 .sales-table {

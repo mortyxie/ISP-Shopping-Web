@@ -109,7 +109,7 @@
               <img :src="item.image" :alt="item.name" class="item-image">
               <div class="item-details">
                 <h3>{{ item.name }}</h3>
-                <p class="item-condition">{{ item.condition }}</p>
+                <p class="item-condition">{{ formatCondition(item.condition) }}</p>
                 <p class="item-price">¥{{ formatMoney(item.price) }} x {{ item.quantity }}</p>
                 <p class="item-id">Product ID: {{ item.id }}</p>
               </div>
@@ -150,7 +150,7 @@
                 </div>
                 <div class="product-details">
                   <p class="product-name">{{ item.name }}</p>
-                  <p class="product-condition">{{ $t('orderDetail.review.version') }}: {{ item.condition }}</p>
+                  <p class="product-condition">{{ $t('orderDetail.review.version') }}: {{ formatCondition(item.condition) }}</p>
                   <p class="product-id-text">Product ID: {{ item.id }}</p>
                 </div>
               </div>
@@ -244,10 +244,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { isAuthenticated } from '../services/authService'
 import { submitReview } from '../services/reviewService'
+import { formatConditionLabel } from '../utils/conditionLabel'
 
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
+
+const formatCondition = (c) => formatConditionLabel(t, c)
 
 // Order state
 const order = ref(null)

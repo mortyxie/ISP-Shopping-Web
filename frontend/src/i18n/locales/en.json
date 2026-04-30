@@ -24,6 +24,11 @@
     }
   },
   "locale": "en",
+  "conditionGrade": {
+    "mint": "Mint",
+    "nearmint": "Near Mint",
+    "good": "Good"
+  },
   "home": {
     "latestUpdates": "Latest Updates",
     "viewMore": "View More",
@@ -333,7 +338,8 @@
     "description": "Description",
     "addedToCart": "Added to cart successfully",
     "addToCartError": "Failed to add to cart",
-    "buyNow": "Buy Now"
+    "buyNow": "Buy Now",
+    "noDescription": "No description"
   },
   "albumDetail": {
     "tracklist": "Tracklist",
@@ -727,6 +733,11 @@
       "genreWeekly": "Genre Weekly Sales Comparison",
       "albumTrend": "Album Weekly Sales Trend",
       "productSales": "Product Sales by Week",
+      "productSalesRowsTotal": "{count} rows total",
+      "productSalesPerPage": "Rows per page",
+      "productSalesPageInfo": "Page {current} / {total}",
+      "productSalesPrev": "Previous",
+      "productSalesNext": "Next",
       "selectAlbum": "Select Album",
       "allAlbums": "All Albums",
       "album": "Album",
@@ -772,5 +783,73 @@
     "korea": "South Korea",
     "singapore": "Singapore",
     "other": "Other"
+  },
+  "about": {
+    "title": "About Us",
+    "intro": "Welcome to Phoenix Blossom Crossroads — a second-hand vinyl record trading platform for music lovers.",
+    "whatWeDo": {
+      "title": "What We Do",
+      "text": "We believe every vinyl record has its own unique story. Our platform connects record enthusiasts and collectors, helping great music find new homes. Whether it's classic rock, jazz, classical, or pop, you'll find your next favorite record here."
+    },
+    "whyVinyl": {
+      "title": "Why Vinyl",
+      "text": "Vinyl records are more than just a music format — they're a culture. The warm sound quality, beautiful cover art, and collectible value are things digital music cannot replace. We hope to help more people experience the magic of vinyl through this platform."
+    },
+    "ourPromise": {
+      "title": "Our Promise",
+      "items": [
+        "✓ Every record is carefully graded",
+        "✓ Accurate descriptions, transparent pricing",
+        "✓ Secure payments, transaction protection",
+        "✓ Professional packaging, safe shipping"
+      ]
+    },
+    "contact": {
+      "title": "Contact Us",
+      "text": "Have questions or suggestions? We'd love to hear from you!"
+    }
+  },
+  "help": {
+    "title": "Help Center",
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "q1": "How do I buy a record?",
+      "a1": "Browse album pages, select the condition you want, click to view product details, then add to cart or buy now, and complete checkout.",
+      "q2": "How are record conditions defined?",
+      "a2": "We have three condition grades: Mint (new or nearly perfect), Near Mint (minor signs of use, plays perfectly), Good (visible wear, but plays without issues).",
+      "q3": "How do I contact a seller?",
+      "a3": "You can contact sellers through the order details page, or leave a message on the product page.",
+      "q4": "What payment methods are supported?",
+      "a4": "We currently support WeChat Pay, Alipay, and bank cards. Payment features are continuously being improved.",
+      "q5": "Can I return or exchange items?",
+      "a5": "If the record does not match the description, please contact customer service within 7 days of delivery to request a return or exchange."
+    },
+    "contact": {
+      "title": "Contact Support",
+      "text": "If the above doesn't answer your question, please contact our support team:",
+      "email": "Email",
+      "response": "Response time",
+      "hours": "hours"
+    }
+  },
+  "careMode": {
+    "title": "Care Mode",
+    "homeDescription": "Click on any album card to view details and purchase. Larger text, less information, clearer operation.",
+    "searchTitle": "Search Tips",
+    "searchDescription": "Search by album name or artist name directly; or select a category first, then browse results.",
+    "categoryTitle": "Select a Category",
+    "categoryDescription": "Click on a category and you'll be taken to the corresponding album list.",
+    "albumDetailTitle": "Select Condition to Purchase",
+    "albumDetailDescription": "Click on any product card to go to the product detail page (add to cart or buy now).",
+    "productDetailTitle": "Purchase Tips",
+    "productDetailDescription": "You can add to cart (🛒) or buy now (💰). Each item is unique.",
+    "cartTitle": "How to Use Cart",
+    "cartDescription": "Each item is unique: quantity can only be <strong>0 or 1</strong>. Only items with quantity <strong>1</strong> will proceed to checkout.",
+    "addressesTitle": "Shipping Address",
+    "addressesDescription": "It's recommended to set a 'Default Address' for easier checkout.",
+    "ordersTitle": "My Orders",
+    "ordersDescription": "Click 'View Details' to see address, payment status, and product list.",
+    "checkoutTitle": "Checkout Tips",
+"checkoutDescription": "Please confirm your shipping address and payment method first, then click \"Place Order\" at the bottom. The total amount will be calculated automatically."
   }
 }

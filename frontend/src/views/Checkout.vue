@@ -30,9 +30,9 @@
       <!-- Checkout Form -->
       <div v-else class="checkout-content">
         <div class="care-only care-banner">
-          <div class="title">💰 结算提示</div>
+          <div class="title">💰 {{ $t('careMode.checkoutTitle') }}</div>
           <div class="desc">
-            请先确认收货地址与支付方式，然后点击底部“提交订单”。金额会自动计算。
+            {{ $t('careMode.checkoutDescription') }}
           </div>
         </div>
         <div class="checkout-grid">
@@ -193,7 +193,7 @@
               <div v-for="item in cartItems" :key="item.id" class="summary-item">
                 <div class="item-info">
                   <span class="item-name">{{ item.name }}</span>
-                  <span class="item-condition">{{ item.condition }}</span>
+                  <span class="item-condition">{{ formatCondition(item.condition) }}</span>
                 </div>
                 <div class="item-price">
                   <span class="item-total">¥{{ formatMoney(item.price || 0) }}</span>
@@ -251,9 +251,12 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getCart, clearCart } from '../services/cartService'
 import { isAuthenticated } from '../services/authService'
+import { formatConditionLabel } from '../utils/conditionLabel'
 
 const router = useRouter()
 const { t } = useI18n()
+
+const formatCondition = (c) => formatConditionLabel(t, c)
 
 // State
 const cartItems = ref([])
